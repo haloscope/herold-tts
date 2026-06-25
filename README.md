@@ -44,7 +44,7 @@ docker compose exec qwen3-tts bash
 ```bash
 docker compose exec qwen3-tts python -c \
   "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))"
-# erwartet z.B.: 2.x.x+cu128 ... 12.8 ... NVIDIA GeForce RTX 5090
+# erwartet z.B.: 2.x.x+cu128 ... 12.8 ... NVIDIA GeForce XYZ
 ```
 Zeigt das eine CPU-Torch oder cu124 → im Dockerfile bleibt die cu128-Zeile
 maßgeblich; ggf. `pip install --force-reinstall torch --index-url
