@@ -146,3 +146,18 @@ Zugriff auf die finalen Dateien im Windows-Explorer:
 
 6. **Convert**: `docker compose exec qwen3-tts python /work/convert.py`
    → `final/*.m4a` + `final/*.mp3`
+
+
+## Lizenzen & Compliance
+
+Alle Komponenten unter permissiven Open-Source-Lizenzen. Siehe [SBOM.md](SBOM.md) für Details.
+
+**Status:** ✅ Kommerziell nutzbar, keine Lizenzgebühren, keine Copyleft-Anforderungen.
+```
+
+**Besonderheiten:**
+- ✅ **Alle Hauptkomponenten:** Apache-2.0, BSD-3, BSD-2, MIT (permissiv)
+- ⚠️ **GPL-Tools (ffmpeg, sox):** Zulässig (externe Tools, nicht statisch gelinkt)
+- ⚠️ **NVIDIA CUDA/cuDNN:** Proprietär, aber frei nutzbar
+- ✅ **Qwen3-Modelle:** Apache-2.0 (kommerziell frei)
+
