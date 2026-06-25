@@ -1,0 +1,17 @@
+services:
+  qwen3-tts:
+    build: .
+    image: qwen3-tts-ansagen:cu128
+    container_name: qwen3-tts
+    gpus: all                      # gibt der Container die 5090 frei
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - HF_HOME=/cache/hf
+      # - HF_TOKEN=hf_xxx           # nur falls HF mal einen Token verlangt
+    volumes:
+      - ./cache:/cache             # HF-Modellcache (persistent, ~9 GB für 2x 1.7B)
+      - ./work:/work               # Skripte + erzeugte Audios
+    ports:
+      - "8000:8000"                # für das interaktive Audition-Web-UI
+    stdin_open: true
+    tty: true

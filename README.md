@@ -1,93 +1,149 @@
-# OSKAR-TTS
+# Qwen3-TTS Ansagen (DE + EN, eine Stimme)
+
+Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
+**einer** konsistenten Stimme. Selbst-gehostet, Apache-2.0, kommerziell nutzbar.
 
 
 
-## Getting started
+## Warum dieser Stack? (Entscheidungslog)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+| Frage | Optionen | Wahl + Begründung |
+|---|---|---|
+| Engine? | Kokoro / Piper / Chatterbox / **Qwen3-TTS** | Qwen3-TTS — einziges Modell, das *fertige Stimmen* **und** dieselbe Stimme über DE+EN **und** Apache-2.0 (kommerziell) vereint. Kokoro: kein Deutsch. Piper: pro Sprache getrennte Stimmen. Chatterbox: braucht Referenzclip (war nicht vorhanden). |
+| Modus? | CustomVoice / VoiceDesign / VoiceClone | Clone fällt raus (kein Sample). Audition testet **CustomVoice** (9 Presets) **und** **VoiceDesign** (Stimme per Text) gegeneinander. |
+| Modellgröße? | 0.6B / **1.7B** | 1.7B — beste DE-Qualität; bei <10 Ansagen ist Renderzeit irrelevant. RTX 5090 (32 GB) trägt das locker. |
+| Lizenz? | — | Apache-2.0 → bezahlte Gigs unproblematisch (keine Gebühren/Attribution). |
+| Zielformat? | — | `.m4a` (AAC) + `.mp3` parallel, aus einem verlustfreien WAV-Master. |
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Aufgefallen / Fallstricke
+- **Blackwell (sm_120):** Die 5090 braucht CUDA **12.8+** und Blackwell-fähiges
+  PyTorch (cu128). Ältere Images scheitern mit „no kernel image available".
+  Deshalb Basis-Image `nvidia/cuda:12.8.1` + Torch von der cu128-Quelle.
+- **Kein deutscher Native unter den 9 Presets** (5x CN, 2x EN, 1x JA, 1x KO).
+  Deutsch geht trotzdem; für deutschen Native-Klang ohne Aufnahme ist
+  **VoiceDesign** der bessere Hebel. Darum testet die Audition beides.
+- **torch-Konflikt-Risiko (EINGETRETEN, gelöst):** `pip install qwen-tts`
+  zieht `torchaudio` als Abhängigkeit nach — und zwar eine **CUDA-13**-Variante
+  (`libcudart.so.13`), die nicht zur cu128-Torch (`libcudart.so.12`) passt →
+  torchaudio crasht beim Laden. Lösung: `torch` **und** `torchaudio` als Paar
+  aus der cu128-Quelle vorinstallieren, dann ist die Abhängigkeit erfüllt und
+  qwen-tts zieht nichts Falsches nach. (Die `sox not found`-Warnung war nur
+  Folgerauschen; SoX ist jetzt mit im Image.)
 
-## Add your files
+---
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Setup
 
+```bash
+# im Projektordner
+docker compose build          # einmalig (zieht CUDA-Image + Torch + qwen-tts)
+docker compose up -d
+docker compose exec qwen3-tts bash
 ```
-cd existing_repo
-git remote add origin http://git.lab/dataport/oskar-tts.git
-git branch -M main
-git push -uf origin main
+
+**Blackwell-Check direkt nach dem Build** (Pflicht, sonst rendert nichts):
+```bash
+docker compose exec qwen3-tts python -c \
+  "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))"
+# erwartet z.B.: 2.x.x+cu128 ... 12.8 ... NVIDIA GeForce RTX 5090
+```
+Zeigt das eine CPU-Torch oder cu124 → im Dockerfile bleibt die cu128-Zeile
+maßgeblich; ggf. `pip install --force-reinstall torch --index-url
+https://download.pytorch.org/whl/cu128` im Container nachschieben.
+
+---
+
+## Audition (Schritt 2) — Stimme wählen
+
+**Variante 1: Batch-Skript** (reproduzierbar, empfohlen)
+```bash
+# audition.py liegt durch das ./work-Volume im Container unter /work
+docker compose exec qwen3-tts python /work/audition.py
+# Ergebnis: ./work/audition/*.wav  (auf dem Host)
+```
+Erzeugt denselben DE- und EN-Ansagesatz für mehrere Preset-Stimmen
+(Ryan, Aiden, Serena, Uncle_Fu) und zwei VoiceDesign-Beschreibungen.
+→ Alle anhören, Favorit notieren.
+
+**Variante 2: Interaktives Web-UI** (zum freien Ausprobieren)
+```bash
+docker compose exec qwen3-tts \
+  qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --ip 0.0.0.0 --port 8000
+# Browser: http://<homelab-ip>:8000
 ```
 
-## Integrate with your tools
+Der erste Lauf lädt die Modelle (~4,5 GB je 1.7B-Modell) in `./cache`.
 
-* [Set up project integrations](http://git.lab/dataport/oskar-tts/-/settings/integrations)
+---
 
-## Collaborate with your team
+## Phase 5, Schritt 3-5: Batch-Render + Konvertierung
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Die Stimme wurde gewählt: **design_female_neutral via VoiceClone** (reference_design_de.wav).
 
-## Test and Deploy
+### Schritt 3: ansagen.yaml editieren
+Öffne `ansagen.yaml` und ergänze deine Ansagen (Vorlage schon drin):
+```yaml
+ansagen:
+  - id: welcome_de
+    sprache: German
+    text: "Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen!..."
+  - id: welcome_en
+    sprache: English
+    text: "Hello, I'm delighted to welcome you to Oscar!..."
+  # Weitere Ansagen hier hinzufügen
+```
 
-Use the built-in continuous integration in GitLab.
+### Schritt 4: Batch-Render (voice_clone_prompt erzeugen + rendernx)
+```bash
+docker compose exec qwen3-tts python /work/render.py
+```
+- Lädt `audition/reference_design_de.wav` (die Stimmen-Referenz)
+- Erzeugt `voice_clone_prompt` (gespeichert in `voice_clone_prompt.json` für Reproduzierbarkeit)
+- Rendert alle Ansagen aus `ansagen.yaml` mit der geclonten Stimme
+- **Output:** `./renders/*.wav` (24 kHz WAV-Master, auf dem Host)
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Schritt 5: Konvertierung zu AAC + MP3
+```bash
+docker compose exec qwen3-tts python /work/convert.py
+```
+- Liest `./renders/*.wav`
+- Normalisiert Loudness (EBU R128 Standard: -23 LUFS)
+- Speichert beide Formate:
+  - `./final/*.m4a` (AAC, 192 kbps)
+  - `./final/*.mp3` (MP3, VBR ~192 kbps)
+- **Output:** `./final/` auf dem Host
 
-***
+Zugriff auf die finalen Dateien im Windows-Explorer:
+```
+\\wsl$\Debian\home\sorb\tts\work\final\
+  ├── welcome_de.m4a
+  ├── welcome_de.mp3
+  ├── welcome_en.m4a
+  ├── welcome_en.mp3
+  └── ...
+```
 
-# Editing this README
+---
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Reproduzierbar von 0
 
-## Suggestions for a good README
+1. Ordner mit Dateien anlegen:
+   - `Dockerfile`, `docker-compose.yml`
+   - `audition.py`, `render.py`, `convert.py`
+   - `ansagen.yaml` (editieren!)
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+2. `docker compose build && docker compose up -d`
 
-## Name
-Choose a self-explaining name for your project.
+3. Blackwell-Check (oben)
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+4. **Audition** (optional, wenn Stimme neu wählen):
+   ```bash
+   docker compose exec qwen3-tts python /work/audition.py
+   # -> audition/*.wav anhören, Stimme wählen
+   ```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+5. **Render**: `docker compose exec qwen3-tts python /work/render.py`
+   → `renders/*.wav`
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+6. **Convert**: `docker compose exec qwen3-tts python /work/convert.py`
+   → `final/*.m4a` + `final/*.mp3`
