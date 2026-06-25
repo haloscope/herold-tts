@@ -97,9 +97,9 @@ Alle Qwen3-Modelle sind unter **Apache-2.0** lizenziert und kommerziell nutzbar.
 
 | Datei | License | Author | Notizen |
 |-------|---------|--------|---------|
-| audition.py | MIT | Thore (Dataport) | Phase 5.1-2: Stimmen-Audition |
-| render.py | MIT | Thore (Dataport) | Phase 5.3-4: Batch-Render |
-| convert.py | MIT | Thore (Dataport) | Phase 5.5: ffmpeg Konvertierung |
+| audition.py | MIT | Thore (Dataport) | Stimmen-Audition |
+| render.py | MIT | Thore (Dataport) | Batch-Render |
+| convert.py | MIT | Thore (Dataport) | ffmpeg Konvertierung |
 | Dockerfile | MIT | Thore (Dataport) | Container-Definition |
 | docker-compose.yml | MIT | Thore (Dataport) | Orchestrierung |
 | ansagen.yaml | Frei definierbar | User | Ansagen-Liste (Daten) |
