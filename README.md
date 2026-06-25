@@ -16,7 +16,7 @@ Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
 | Zielformat? | — | `.m4a` (AAC) + `.mp3` parallel, aus einem verlustfreien WAV-Master. |
 
 ### Aufgefallen / Fallstricke
-- **Blackwell (sm_120):** Die 5090 braucht CUDA **12.8+** und Blackwell-fähiges
+- **Blackwell (sm_120):** Benötigt CUDA **12.8+** und Blackwell-fähiges
   PyTorch (cu128). Ältere Images scheitern mit „no kernel image available".
   Deshalb Basis-Image `nvidia/cuda:12.8.1` + Torch von der cu128-Quelle.
 - **Kein deutscher Native unter den 9 Presets** (5x CN, 2x EN, 1x JA, 1x KO).
