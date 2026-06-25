@@ -27,8 +27,7 @@ Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
   (`libcudart.so.13`), die nicht zur cu128-Torch (`libcudart.so.12`) passt →
   torchaudio crasht beim Laden. Lösung: `torch` **und** `torchaudio` als Paar
   aus der cu128-Quelle vorinstallieren, dann ist die Abhängigkeit erfüllt und
-  qwen-tts zieht nichts Falsches nach. (Die `sox not found`-Warnung war nur
-  Folgerauschen; SoX ist jetzt mit im Image.)
+  qwen-tts zieht nichts Falsches nach.
 
 ---
 
