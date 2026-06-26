@@ -12,7 +12,7 @@ Lösung:
   - design_then_clone Workflow für maximale Stabilität
 
 Ausgabe: ./audition/*.wav  (24 kHz WAV)
-Danach: anhören, beurteilen, einer Stimme final wählen.
+Danach: anhoeren, Favorit wählen & Favorit in der render.py als REF_AUDIO_FILE setzen.
 """
 
 import os
@@ -232,3 +232,4 @@ if __name__ == "__main__":
     print("     - design_male_neutral in DE + EN")
     print("     (Basis für Design-then-Clone Cloning)")
     print("=" * 70)
+    
