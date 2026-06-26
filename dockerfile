@@ -1,4 +1,4 @@
-# Qwen3-TTS für Blackwell (sm_120)
+# Qwen3-TTS Container für Blackwell (sm_120)
 # WICHTIG: CUDA 12.8 ist Pflicht. Ältere Images (12.1 / 12.4) laufen auf Blackwell
 # Karten NICHT ("no kernel image available for execution on the device").
 # runtime (NICHT devel): wir kompilieren nichts, PyTorch cu128 bringt CUDA+cuDNN

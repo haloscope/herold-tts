@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-audition.py - Phase 5, Schritt 2: Stimmen-Audition.
+audition.py - Stimmen-Auditierung.
 
 Erzeugt fuer jede Kandidatenstimme denselben deutschen UND englischen
 Ansage-Testsatz, damit du mit echten Ohren entscheidest, welche Stimme
@@ -15,7 +15,7 @@ Deckt beide Wege ab:
                      erzeugen, ebenfalls ohne Aufnahme.
 
 Ausgabe: ./audition/*.wav  (24 kHz WAV)
-Danach: anhoeren, Favorit notieren, mir Bescheid geben -> wir locken die
+Danach: anhoeren, Favorit wählen & Favorit in der render.py als REF_AUDIO_FILE setzen. -> wir locken die
 Stimme fest und rendern die echten Ansagen (Schritt 3-5).
 """
 
@@ -34,7 +34,7 @@ DTYPE = torch.bfloat16
 DEVICE = "cuda:0"
 
 # Neutraler Ansage-Testsatz - bewusst typischer Voicemail-Inhalt.
-TEXT_DE = ("Willkommen. Sie haben unsere Sprachbox erreicht. "
+TEXT_DE = ("Willkommen. Sie haben unsere Mailbox erreicht. "
            "Bitte hinterlassen Sie nach dem Signalton eine Nachricht.")
 TEXT_EN = ("Welcome. You have reached our voicemail. "
            "Please leave a message after the tone.")
