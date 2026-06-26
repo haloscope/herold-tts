@@ -144,5 +144,5 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 70)
     print("Nächster Schritt: python convert.py")
-    print("  -> Konvertiert ./renders/*.wav zu AAC + MP3 mit Loudness-Normalisierung")
+    print("  -> Konvertiert ./renders/*.wav zu MA4/AAC + MP3 mit Loudness-Normalisierung")
     print("=" * 70)
