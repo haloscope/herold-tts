@@ -17,7 +17,7 @@ stages:
 sast:
   stage: test
 include:
-- template: Auto-DevOps.gitlab-ci.yml
+  - template: Auto-DevOps.gitlab-ci.yml
 variables:
   SECRET_DETECTION_ENABLED: 'true'
 secret_detection:
