@@ -1,41 +1,35 @@
+# Ansagen-Liste für Batch-Rendering mit Multiversion
+# Format: id, text_en, text_de
+# 
+# Output: 3 Versionen pro Ansage
+#   - <id>_en.wav (nur Englisch)
+#   - <id>_de.wav (nur Deutsch)
+#   - <id>_multiversion.wav (EN + 2s Pause + DE)
+# 
+# Render-Zeit: nur 2 Synthesen pro Ansage (EN + DE), Multiversion ist Kombination!
+
+ansagen:
+  # Willkommenansage
+  - id: welcome
+    text_en: "Hello, I'm delighted to welcome you to Oscar! This is the Open Source Communication Platform of Schleswig-Holstein."
+    text_de: "Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins."
+
+  - id: unavailable
+    text_en: "Thank you for calling. We are currently unable to take your call. Please try again at a later time."
+    text_de: "Vielen Dank für Ihren Anruf. Momentan kann ihr Anruf nicht persönlich entgegengenommen werden. Bitte versuchen Sie es zu einem späteren Zeitpunkt erneut."
+    
+  - id: voicemail
+    text_en: "Thank you for calling. We are currently unable to take your call. Please leave a message and we will respond as soon as possible."
+    text_de: "Vielen Dank für Ihren Anruf. Momentan kann ihr Anruf nicht persönlich entgegengenommen werden. Bitte versuchen Sie es zu einem späteren Zeitpunkt erneut."
+  
+  # Weitere Ansagen hier einfügen (id, text_en, text_de)
+  # Beispiel:
+  # - id: voicemail
+  #   text_en: "Please leave a message after the tone."
+  #   text_de: "Bitte hinterlassen Sie eine Nachricht nach dem Signalton."
+
 # Ansagen-Liste für Batch-Rendering
 # Format: id, sprache (German|English), text
 # 
 # Die Stimme (voice_clone_prompt) wird aus audition/reference_design_de.wav
 # erzeugt und bleibt über alle Ansagen hinweg identisch.
-
-ansagen:
-  # Willkommenansage
-  - id: welcome_de
-    sprache: German
-    text: "Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins."
-
-  - id: welcome_en
-    sprache: English
-    text: "Hello, I'm delighted to welcome you to Oscar! This is the Open Source Communication Platform of Schleswig-Holstein."
-
-  - id: unavailable_de
-    sprache: German
-    text: "Vielen Dank für Ihren Anruf. Momentan kann ihr Anruf nicht persönlich entgegengenommen werden. Bitte versuchen Sie es zu einem späteren Zeitpunkt erneut."
-  
-  - id: unavailable_en
-    sprache: English
-    text: "Thank you for calling. We are currently unable to take your call. Please try again at a later time."
-
-  - id: voicemail_de
-    sprache: German
-    text: "Vielen Dank für Ihren Anruf. Momentan kann ihr Anruf nicht persönlich entgegengenommen werden. Bitte versuchen Sie es zu einem späteren Zeitpunkt erneut."
-  
-  - id: voicemail_en
-    sprache: English
-    text: "Thank you for calling. We are currently unable to take your call. Please leave a message and we will respond as soon as possible."
-  
-  # Weitere Ansagen hier einfügen (id, sprache, text)
-  # Beispiel:
-  # - id: voicemail_de
-  #   sprache: German
-  #   text: "Bitte hinterlassen Sie eine Nachricht nach dem Signalton."
-  #
-  # - id: voicemail_en
-  #   sprache: English
-  #   text: "Please leave a message after the tone."
