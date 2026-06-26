@@ -1,77 +1,58 @@
 # OSKAR-TTS
 
 Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
-**einer** konsistenten Stimme. Selbst-gehostet, Apache-2.0, kommerziell nutzbar.
-Aktuell ist der Stack darauf ausgelegt eine NVIDIA Blackwell GPU für das Rendering der Audiofiles vorgesehen. Grundsätzlich sollte dies mit einer CPU oder anderen GPU gerendert werden können. Hierzu werden ggfs. Anpassungen erforderlich sein, wird sich aber in jedemfall auf die Renderzeit auswirken.
+**einer** konsistenten Stimme. Selbst-gehostet, MIT, kommerziell nutzbar.
 
+Aktuell ist der Stack darauf ausgelegt eine NVIDIA Blackwell GPU für das Rendering der Audiofiles vorzusehen. Grundsätzlich sollte dies mit einer CPU oder anderen GPU gerendert werden können. Hierzu werden ggfs. Anpassungen erforderlich sein, wird sich aber in jedemfall auf die Renderzeit auswirken.
+
+---
 
 ## Warum dieser Stack? (Entscheidungslog)
 
 | Frage | Optionen | Wahl + Begründung |
 |---|---|---|
-| Engine? | Kokoro / Piper / Chatterbox / **Qwen3-TTS** | Qwen3-TTS — einziges Modell, das *fertige Stimmen* **und** dieselbe Stimme über DE+EN **und** Apache-2.0 (kommerziell) vereint. Kokoro: kein Deutsch. Piper: pro Sprache getrennte Stimmen. Chatterbox: braucht Referenzclip (war nicht vorhanden). |
+| Engine? | Kokoro / Piper / Chatterbox / **Qwen3-TTS** | Qwen3-TTS — einziges Modell, das *fertige Stimmen* **und** dieselbe Stimme über DE+EN **und** MIT (kommerziell) vereint. Kokoro: kein Deutsch. Piper: pro Sprache getrennte Stimmen. Chatterbox: braucht Referenzclip (war nicht vorhanden). |
 | Modus? | CustomVoice / VoiceDesign / VoiceClone | Clone fällt raus (kein Sample). Audition testet **CustomVoice** (9 Presets) **und** **VoiceDesign** (Stimme per Text) gegeneinander. |
 | Modellgröße? | 0.6B / **1.7B** | 1.7B — beste DE-Qualität; bei <10 Ansagen ist Renderzeit irrelevant. |
-| Lizenz? | — | Apache-2.0 → bezahlte Gigs unproblematisch (keine Gebühren/Attribution). |
+| Lizenz? | — | MIT → unbegrenzte kommerzielle Nutzung, keine Gebühren/Attribution. |
 | Zielformat? | — | `.m4a` (AAC) + `.mp3` parallel, aus einem verlustfreien WAV-Master. |
+| Multiversion? | Drei separate Renderings (EN, DE, EN+DE) / **Zwei Renderings + Kombination** | Zwei Synthesen pro Ansage (EN + DE), Multiversion (EN + 2s Pause + DE) wird kombiniert → **50% Render-Zeit-Ersparnis**. |
 
 ### Aufgefallen / Fallstricke
 - **Blackwell (sm_120):** Benötigt CUDA **12.8+** und Blackwell-fähiges
   PyTorch (cu128). Ältere Images scheitern mit „no kernel image available".
-  Deshalb Basis-Image `nvidia/cuda:12.8.1` + Torch von der cu128-Quelle.
-- **Kein deutscher Native unter den 9 Presets** (5x CN, 2x EN, 1x JA, 1x KO).
-  Deutsch geht trotzdem; für deutschen Native-Klang ohne Aufnahme ist
-  **VoiceDesign** der bessere Hebel. Darum testet die Audition beides.
-- **torch-Konflikt-Risiko (EINGETRETEN, gelöst):** `pip install qwen-tts`
-  zieht `torchaudio` als Abhängigkeit nach — und zwar eine **CUDA-13**-Variante
-  (`libcudart.so.13`), die nicht zur cu128-Torch (`libcudart.so.12`) passt →
-  torchaudio crasht beim Laden. Lösung: `torch` **und** `torchaudio` als Paar
-  aus der cu128-Quelle vorinstallieren, dann ist die Abhängigkeit erfüllt und
-  qwen-tts zieht nichts Falsches nach.
+- **Kein deutscher Native unter den 9 Presets:** Deutsch geht trotzdem; für deutschen Native-Klang nutzen wir **VoiceDesign**.
+- **torch-Konflikt-Risiko (GELÖST):** `pip install qwen-tts` zieht inkompatible torchaudio nach. Lösung: torch + torchaudio als Paar aus cu128 instalieren.
 
 ---
 
-## Setup (Schritt 1) - Dockerimage erstellen und starten
+## Setup (Schritt 1) - Docker Image erstellen und starten
 
 ```bash
 # im Projektordner
 docker compose build          # einmalig (zieht CUDA-Image + Torch + qwen-tts)
 docker compose up -d
-docker compose exec qwen3-tts bash
 ```
 
-**Blackwell-Check direkt nach dem Build** (Pflicht, sonst rendert nichts):
+**Blackwell-Check direkt nach dem Build** (Pflicht):
 ```bash
 docker compose exec qwen3-tts python -c \
   "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))"
 # erwartet z.B.: 2.x.x+cu128 ... 12.8 ... NVIDIA GeForce XYZ
 ```
-Zeigt das eine CPU-Torch oder cu124 → im Dockerfile bleibt die cu128-Zeile
-maßgeblich; ggf. `pip install --force-reinstall torch --index-url
-https://download.pytorch.org/whl/cu128` im Container nachschieben.
 
 ---
 
 ## Audition (Schritt 2) — Stimme auditieren
 
-**Variante 1: Batch-Skript** (reproduzierbar, empfohlen)
+**Batch-Skript** (reproduzierbar, empfohlen)
 ```bash
-# audition.py liegt durch das ./work-Volume im Container unter /work
 docker compose exec qwen3-tts python /work/audition.py
-# Ergebnis: ./work/audition/*.wav  (auf dem Host)
+# Ergebnis: ./audition/*.wav  (auf dem Host)
 ```
-Erzeugt denselben DE- und EN-Ansagesatz für mehrere Preset-Stimmen
-(Ryan, Aiden, Serena, Uncle_Fu) und zwei VoiceDesign-Beschreibungen.
+
+Erzeugt Samples für mehrere Preset-Stimmen und VoiceDesign-Beschreibungen.
 → Alle anhören, Favorit notieren.
-
-**Variante 2: Interaktives Web-UI** (zum freien Ausprobieren)
-```bash
-docker compose exec qwen3-tts \
-  qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --ip 0.0.0.0 --port 8000
-# Browser: http://<homelab-ip>:8000
-```
-
-Der erste Lauf lädt die Modelle (~4,5 GB je 1.7B-Modell) in `./cache`.
 
 ---
 
@@ -80,45 +61,46 @@ Der erste Lauf lädt die Modelle (~4,5 GB je 1.7B-Modell) in `./cache`.
 Die Stimme wurde gewählt: **design_female_neutral via VoiceClone** (reference_design_de.wav).
 
 ### Schritt 3: ansagen.yaml editieren
-Öffne `ansagen.yaml` und ergänze deine Ansagen (Vorlage schon drin):
+Öffne `ansagen.yaml` und definiere deine Ansagen mit **separaten EN + DE Texten**:
 ```yaml
 ansagen:
-  - id: welcome_de
-    sprache: German
-    text: "Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen!..."
-  - id: welcome_en
-    sprache: English
-    text: "Hello, I'm delighted to welcome you to Oscar!..."
+  - id: welcome
+    text_en: "Hello, I'm delighted to welcome you to Oscar!..."
+    text_de: "Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen!..."
   # Weitere Ansagen hier hinzufügen
 ```
 
-### Schritt 4: Batch-Render (voice_clone_prompt erzeugen + rendernx)
+### Schritt 4: Batch-Render (3 Versionen pro Ansage, aber nur 2 Synthesen!)
 ```bash
 docker compose exec qwen3-tts python /work/render.py
 ```
-- Lädt `audition/reference_design_de.wav` (die Stimmen-Referenz)
-- Erzeugt `voice_clone_prompt` (gespeichert in `voice_clone_prompt.json` für Reproduzierbarkeit)
-- Rendert alle Ansagen aus `ansagen.yaml` mit der geclonten Stimme
-- **Output:** `./renders/*.wav` (24 kHz WAV-Master, auf dem Host)
+
+Rendert für **jede Ansage automatisch 3 Versionen**:
+- `<id>_en.wav` (nur Englisch)
+- `<id>_de.wav` (nur Deutsch)  
+- `<id>_multiversion.wav` (Englisch + 2s Pause + Deutsch)
+
+**Render-Zeit-Ersparnis:** Die Multiversion wird aus EN+DE kombiniert (kein extra TTS-Rendering).
+
+**Output:** `./renders/<id>_{en,de,multiversion}.wav` (24 kHz WAV-Master)
 
 ### Schritt 5: Konvertierung zu AAC + MP3
 ```bash
 docker compose exec qwen3-tts python /work/convert.py
 ```
-- Liest `./renders/*.wav`
-- Normalisiert Loudness (EBU R128 Standard: -23 LUFS)
-- Speichert beide Formate:
-  - `./final/*.m4a` (AAC, 192 kbps)
-  - `./final/*.mp3` (MP3, VBR ~192 kbps)
-- **Output:** `./final/` auf dem Host
 
-Zugriff auf die finalen Dateien im Windows-Explorer:
+- Konvertiert **alle** WAV-Dateien (EN, DE, Multiversion)
+- Loudness-Normalisierung (EBU R128: -23 LUFS)
+- Beide Formate: `.m4a` (AAC) + `.mp3` (VBR ~192 kbps)
+
+**Output:** `./final/<id>_{en,de,multiversion}.{m4a,mp3}`
+
+Zugriff im Windows-Explorer:
 ```
 \\wsl$\Debian\home\sorb\tts\work\final\
-  ├── welcome_de.m4a
-  ├── welcome_de.mp3
-  ├── welcome_en.m4a
-  ├── welcome_en.mp3
+  ├── welcome_en.m4a / .mp3
+  ├── welcome_de.m4a / .mp3
+  ├── welcome_multiversion.m4a / .mp3
   └── ...
 ```
 
@@ -135,29 +117,16 @@ Zugriff auf die finalen Dateien im Windows-Explorer:
 
 3. Blackwell-Check (oben)
 
-4. **Audition** (optional, wenn Stimme neu wählen):
-   ```bash
-   docker compose exec qwen3-tts python /work/audition.py
-   # -> audition/*.wav anhören, Stimme wählen
-   ```
+4. **Audition** (optional): `docker compose exec qwen3-tts python /work/audition.py`
 
-5. **Render**: `docker compose exec qwen3-tts python /work/render.py`
-   → `renders/*.wav`
+5. **Render**: `docker compose exec qwen3-tts python /work/render.py` → `renders/*.wav`
 
-6. **Convert**: `docker compose exec qwen3-tts python /work/convert.py`
-   → `final/*.m4a` + `final/*.mp3`
+6. **Convert**: `docker compose exec qwen3-tts python /work/convert.py` → `final/*.m4a` + `final/*.mp3`
 
+---
 
 ## Lizenzen & Compliance
 
 Alle Komponenten unter permissiven Open-Source-Lizenzen. Siehe [SBOM.md](SBOM.md) für Details.
 
-**Status:** ✅ Kommerziell nutzbar, keine Lizenzgebühren, keine Copyleft-Anforderungen.
-```
-
-**Besonderheiten:**
-- ✅ **Alle Hauptkomponenten:** Apache-2.0, BSD-3, BSD-2, MIT (permissiv)
-- ⚠️ **GPL-Tools (ffmpeg, sox):** Zulässig (externe Tools, nicht statisch gelinkt)
-- ⚠️ **NVIDIA CUDA/cuDNN:** Proprietär, aber frei nutzbar
-- ✅ **Qwen3-Modelle:** Apache-2.0 (kommerziell frei)
-
+**Status:** ✅ Kommerziell nutzbar, keine Lizenzgebühren, keine Copyleft-Anforderungen (Projekt unter MIT).
