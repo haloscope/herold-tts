@@ -15,8 +15,7 @@ Deckt beide Wege ab:
                      erzeugen, ebenfalls ohne Aufnahme.
 
 Ausgabe: ./audition/*.wav  (24 kHz WAV)
-Danach: anhoeren, Favorit wählen & Favorit in der render.py als REF_AUDIO_FILE setzen. -> wir locken die
-Stimme fest und rendern die echten Ansagen (Schritt 3-5).
+Danach: anhoeren, Favorit wählen & Favorit in der render.py als REF_AUDIO_FILE setzen.
 """
 
 import os
