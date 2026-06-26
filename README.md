@@ -1,8 +1,8 @@
-# Qwen3-TTS Ansagen (DE + EN, eine Stimme)
+# OSKAR-TTS
 
 Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
 **einer** konsistenten Stimme. Selbst-gehostet, Apache-2.0, kommerziell nutzbar.
-
+Aktuell ist der Stack darauf ausgelegt eine NVIDIA Blackwell GPU für das Rendering der Audiofiles vorgesehen. Grundsätzlich sollte dies mit einer CPU oder anderen GPU gerendert werden können. Hierzu werden ggfs. Anpassungen erforderlich sein, wird sich aber in jedemfall auf die Renderzeit auswirken.
 
 
 ## Warum dieser Stack? (Entscheidungslog)
@@ -31,7 +31,7 @@ Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
 
 ---
 
-## Setup
+## Setup (Schritt 1) - Dockerimage erstellen und starten
 
 ```bash
 # im Projektordner
@@ -52,7 +52,7 @@ https://download.pytorch.org/whl/cu128` im Container nachschieben.
 
 ---
 
-## Audition (Schritt 2) — Stimme wählen
+## Audition (Schritt 2) — Stimme auditieren
 
 **Variante 1: Batch-Skript** (reproduzierbar, empfohlen)
 ```bash
@@ -75,7 +75,7 @@ Der erste Lauf lädt die Modelle (~4,5 GB je 1.7B-Modell) in `./cache`.
 
 ---
 
-## Phase 5, Schritt 3-5: Batch-Render + Konvertierung
+## Sprachsynthese
 
 Die Stimme wurde gewählt: **design_female_neutral via VoiceClone** (reference_design_de.wav).
 
