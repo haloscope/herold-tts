@@ -16,6 +16,9 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 
 # --- Konfiguration -----------------------------------------------------------
 
@@ -98,7 +101,7 @@ def batch_convert(renders_dir, final_dir):
     """
     Batch-Konvertierung: alle *.wav aus renders_dir -> final_dir (m4a + mp3).
     """
-    print(f"\n[Convert] Batch-Konvertierung {renders_dir}/ -> {final_dir}/")
+    logger.info(f"Batch conversion: {renders_dir}/ → {final_dir}/")
 
     if not os.path.isdir(renders_dir):
         raise FileNotFoundError(f"{renders_dir}/ nicht gefunden! "
@@ -110,48 +113,43 @@ def batch_convert(renders_dir, final_dir):
     if not wav_files:
         raise FileNotFoundError(f"Keine *.wav in {renders_dir}/ gefunden!")
 
-    print(f"  Gefunden: {len(wav_files)} WAV-Dateien")
+    logger.info(f"Found {len(wav_files)} WAV files")
 
     for i, wav_path in enumerate(wav_files, 1):
         try:
             stem = validate_filename_stem(wav_path.stem)
         except ValueError as e:
-            print(f"  [{i}/{len(wav_files)}] SKIP {wav_path.name}: {e}")
+            logger.warning(f"[{i}/{len(wav_files)}] Skipping {wav_path.name}: {e}")
             continue
 
         aac_path = os.path.join(final_dir, f"{stem}.m4a")
         mp3_path = os.path.join(final_dir, f"{stem}.mp3")
 
-        print(f"  [{i}/{len(wav_files)}] {stem}")
+        logger.info(f"[{i}/{len(wav_files)}] Converting: {stem}")
 
-        # AAC
         if convert_wav_to_aac(str(wav_path), aac_path):
-            print(f"      -> {aac_path}")
+            logger.info(f"✓ AAC: {aac_path}")
         else:
-            print(f"      -> FAILED: {aac_path}")
+            logger.error(f"✗ AAC conversion failed: {aac_path}")
 
-        # MP3
         if convert_wav_to_mp3(str(wav_path), mp3_path):
-            print(f"      -> {mp3_path}")
+            logger.info(f"✓ MP3: {mp3_path}")
         else:
-            print(f"      -> FAILED: {mp3_path}")
+            logger.error(f"✗ MP3 conversion failed: {mp3_path}")
 
-    print(f"\nFertig! Alle Dateien in ./{final_dir}/")
+    logger.info(f"✓ Conversion complete. All files in ./{final_dir}/")
 
 
 if __name__ == "__main__":
-    print("ffmpeg-Konvertierung: WAV -> AAC + MP3 mit Loudness-Normalisierung\n")
-    
-    # Check ffmpeg verfügbar
+    logger.info("WAV → AAC + MP3 conversion with loudness normalization")
+
+    # Check ffmpeg available
     try:
         subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
     except FileNotFoundError:
-        raise RuntimeError("ffmpeg nicht gefunden! Installiere mit: apt-get install ffmpeg")
+        logger.critical("ffmpeg not found! Install with: apt-get install ffmpeg")
+        raise RuntimeError("ffmpeg not found")
 
     batch_convert(RENDERS_DIR, FINAL_DIR)
 
-    print("\n" + "=" * 70)
-    print("Fertig!")
-    print(f"AAC-Dateien (.m4a):  ./{FINAL_DIR}/*.m4a")
-    print(f"MP3-Dateien (.mp3):  ./{FINAL_DIR}/*.mp3")
-    print("=" * 70)
+    logger.info(f"Output files: ./{FINAL_DIR}/*.m4a (AAC) and ./{FINAL_DIR}/*.mp3 (MP3)")
