@@ -1,4 +1,4 @@
-# Code Review Overview — OSKAR-TTS
+# Code Review Overview — Herold-TTS
 
 **Datum:** 26.06.2026  
 **Umfang:** render.py, convert.py, audition.py, ansagen.yaml  

@@ -201,7 +201,7 @@ print(f"[INFO] Using device: {DEVICE}")
 
 **Template:**
 ```markdown
-# OSKAR-TTS Work Scripts
+# Herold-TTS Work Scripts
 
 ## Quick Start
 1. `python audition.py` → Wähle beste Stimme

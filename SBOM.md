@@ -1,5 +1,5 @@
 # Software Bill of Materials (SBOM)
-# OSKAR-TTS
+# Herold-TTS
 # Projekt: Open Source Kommunikations Plattform Architektur (OSKAR)
 # 
 # Generated: 2026-06-26
@@ -147,7 +147,7 @@ Alle Qwen3-Modelle sind unter **Apache-2.0** lizenziert und kommerziell nutzbar.
 {
   "sbom_version": "1.0",
   "project": {
-    "name": "OSKAR-TTS",
+    "name": "Herold-TTS",
     "version": "1.0.0",
     "date": "2026-06-26",
     "license": "MIT",

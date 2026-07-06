@@ -1,4 +1,4 @@
-# Code Review — OSKAR-TTS
+# Code Review — Herold-TTS
 
 Systematische Bewertung der Codebasis nach Reifegrad, Performance und Sicherheit.
 

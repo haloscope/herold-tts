@@ -1,4 +1,4 @@
-# OSKAR-TTS: CPU-only Docker image (no CUDA required)
+# Herold-TTS: CPU-only Docker image (no CUDA required)
 # Multi-stage build, optimized for CPU inference
 # Non-root user for security hardening
 
@@ -7,8 +7,8 @@
 # ============================================================================
 FROM ubuntu:24.04 AS builder
 
-LABEL maintainer="OSKAR-TTS Project"
-LABEL description="OSKAR-TTS: CPU-only variant (no GPU required)"
+LABEL maintainer="Herold-TTS Project"
+LABEL description="Herold-TTS: CPU-only variant (no GPU required)"
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -37,7 +37,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 # ============================================================================
 FROM ubuntu:24.04
 
-LABEL maintainer="OSKAR-TTS Project"
+LABEL maintainer="Herold-TTS Project"
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN groupadd -r oskar && useradd -r -g oskar oskar
+RUN groupadd -r herold && useradd -r -g herold herold
 
 # Copy venv from builder
 COPY --from=builder /opt/venv /opt/venv
@@ -71,10 +71,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python3 -c "import sys; sys.path.insert(0, '/app/work'); from render import render_batch; print('OK')" || exit 1
 
 # Change ownership to non-root user
-RUN chown -R oskar:oskar /app
+RUN chown -R herold:herold /app
 
 # Switch to non-root user
-USER oskar
+USER herold
 
 # Default command: bash
 CMD ["/bin/bash"]

@@ -1,4 +1,4 @@
-# OSKAR-TTS
+# Herold-TTS
 
 Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
 **einer** konsistenten Stimme. Selbst-gehostet, MIT, kommerziell nutzbar.
@@ -12,7 +12,7 @@ Aktuell ist der Stack darauf ausgelegt eine NVIDIA Blackwell GPU für das Render
 Starte den Service einfach mit Docker:
 
 ```bash
-docker-compose up oskar-tts-gpu
+docker-compose up herold-tts-gpu
 # oder: cd work && python api.py
 ```
 

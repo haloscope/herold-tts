@@ -1,4 +1,4 @@
-"""Centralized logging setup for OSKAR-TTS scripts."""
+"""Centralized logging setup for Herold-TTS scripts."""
 
 import logging
 import sys
