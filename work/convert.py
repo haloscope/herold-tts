@@ -16,6 +16,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -46,13 +47,8 @@ def validate_filename_stem(stem: str) -> str:
 
 
 def get_loudness_filter(target_lufs="-23"):
-    """
-    ffmpeg loudnorm Filter: misst Loudness, normalisiert auf target.
-    Zwei Pässe: Pass 1 misst, Pass 2 normalisiert.
-    """
-    return (
-        f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
-    )
+    """ffmpeg loudnorm filter: normalize to target loudness (EBU R128)."""
+    return f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
 
 
 def convert_wav_to_aac(wav_path, output_path, loudness_target="-23"):
@@ -97,45 +93,61 @@ def convert_wav_to_mp3(wav_path, output_path, loudness_target="-23"):
         return False
 
 
-def batch_convert(renders_dir, final_dir):
+def batch_convert(renders_dir, final_dir, max_workers=4):
     """
-    Batch-Konvertierung: alle *.wav aus renders_dir -> final_dir (m4a + mp3).
+    Parallel batch conversion: all *.wav → m4a + mp3 (ThreadPoolExecutor).
     """
-    logger.info(f"Batch conversion: {renders_dir}/ → {final_dir}/")
+    logger.info(f"Batch conversion: {renders_dir}/ → {final_dir}/ (max_workers={max_workers})")
 
     if not os.path.isdir(renders_dir):
-        raise FileNotFoundError(f"{renders_dir}/ nicht gefunden! "
-                                f"Führe erst render.py aus.")
+        raise FileNotFoundError(f"{renders_dir}/ not found! Run render.py first.")
 
     os.makedirs(final_dir, exist_ok=True)
 
     wav_files = sorted(Path(renders_dir).glob("*.wav"))
     if not wav_files:
-        raise FileNotFoundError(f"Keine *.wav in {renders_dir}/ gefunden!")
+        raise FileNotFoundError(f"No *.wav files in {renders_dir}/")
 
     logger.info(f"Found {len(wav_files)} WAV files")
 
-    for i, wav_path in enumerate(wav_files, 1):
-        try:
-            stem = validate_filename_stem(wav_path.stem)
-        except ValueError as e:
-            logger.warning(f"[{i}/{len(wav_files)}] Skipping {wav_path.name}: {e}")
-            continue
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {}
+        total_tasks = 0
 
-        aac_path = os.path.join(final_dir, f"{stem}.m4a")
-        mp3_path = os.path.join(final_dir, f"{stem}.mp3")
+        # Submit all conversion tasks (AAC + MP3 per file)
+        for i, wav_path in enumerate(wav_files, 1):
+            try:
+                stem = validate_filename_stem(wav_path.stem)
+            except ValueError as e:
+                logger.warning(f"[{i}/{len(wav_files)}] Skipping {wav_path.name}: {e}")
+                continue
 
-        logger.info(f"[{i}/{len(wav_files)}] Converting: {stem}")
+            aac_path = os.path.join(final_dir, f"{stem}.m4a")
+            mp3_path = os.path.join(final_dir, f"{stem}.mp3")
 
-        if convert_wav_to_aac(str(wav_path), aac_path):
-            logger.info(f"✓ AAC: {aac_path}")
-        else:
-            logger.error(f"✗ AAC conversion failed: {aac_path}")
+            logger.info(f"[{i}/{len(wav_files)}] Submitted: {stem}")
 
-        if convert_wav_to_mp3(str(wav_path), mp3_path):
-            logger.info(f"✓ MP3: {mp3_path}")
-        else:
-            logger.error(f"✗ MP3 conversion failed: {mp3_path}")
+            # Submit both conversions (non-blocking)
+            f_aac = executor.submit(convert_wav_to_aac, str(wav_path), aac_path)
+            f_mp3 = executor.submit(convert_wav_to_mp3, str(wav_path), mp3_path)
+
+            futures[f_aac] = ("AAC", stem, aac_path)
+            futures[f_mp3] = ("MP3", stem, mp3_path)
+            total_tasks += 2
+
+        # Wait for all tasks to complete
+        completed = 0
+        for future in as_completed(futures):
+            fmt, stem, path = futures[future]
+            completed += 1
+            try:
+                result = future.result()
+                if result:
+                    logger.info(f"✓ [{completed}/{total_tasks}] {fmt}: {stem}")
+                else:
+                    logger.error(f"✗ [{completed}/{total_tasks}] {fmt} failed: {stem}")
+            except Exception as e:
+                logger.error(f"✗ [{completed}/{total_tasks}] {fmt} error: {e}", exc_info=True)
 
     logger.info(f"✓ Conversion complete. All files in ./{final_dir}/")
 
