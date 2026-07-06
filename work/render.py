@@ -26,35 +26,28 @@ from pathlib import Path
 from dataclasses import dataclass
 from qwen_tts import Qwen3TTSModel
 from logger import setup_logger
+from config import config
 
 logger = setup_logger(__name__)
 
 # --- Konfiguration -----------------------------------------------------------
 
-ATTN = "sdpa"
-DTYPE = torch.bfloat16
-
-def get_device():
-    """Auto-detect device: prefer TTS_DEVICE env var, fallback to CUDA or CPU."""
-    if "TTS_DEVICE" in os.environ:
-        return os.environ["TTS_DEVICE"]
-    return "cuda:0" if torch.cuda.is_available() else "cpu"
-
-DEVICE = get_device()
+ATTN = config.attn_implementation
+DTYPE = config.dtype
+DEVICE = config.device
 
 # Pfade
-AUDITION_DIR = "audition"
-RENDERS_DIR = "renders"
-ANSAGEN_FILE = "ansagen.yaml"
-CLONE_PROMPT_FILE = "voice_clone_prompt.json"
+AUDITION_DIR = config.audition_dir
+RENDERS_DIR = config.renders_dir
+ANSAGEN_FILE = config.ansagen_file
+CLONE_PROMPT_FILE = config.clone_prompt_file
 
 # Referenz-Datei
-REF_AUDIO_FILE = os.path.join(AUDITION_DIR, "reference_design_de.wav")
-REF_TEXT_DE = ("Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! "
-               "Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins")
+REF_AUDIO_FILE = config.ref_audio_file
+REF_TEXT_DE = config.ref_text_de
 
 # Multiversion-Parameter
-PAUSE_DURATION_SECONDS = 2.0  # Stille zwischen EN und DE
+PAUSE_DURATION_SECONDS = config.pause_duration
 MAX_TEXT_LENGTH = 5000  # Max characters per text (security: DoS protection)
 
 # --- Datenklassen & Validierung -----------------------------------------------
