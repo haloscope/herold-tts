@@ -25,7 +25,14 @@ from qwen_tts import Qwen3TTSModel
 OUT_DIR = "audition"
 ATTN = "sdpa"
 DTYPE = torch.bfloat16
-DEVICE = "cuda:0"
+
+def get_device():
+    """Auto-detect device: prefer TTS_DEVICE env var, fallback to CUDA or CPU."""
+    if "TTS_DEVICE" in os.environ:
+        return os.environ["TTS_DEVICE"]
+    return "cuda:0" if torch.cuda.is_available() else "cpu"
+
+DEVICE = get_device()
 
 # Testsatz für Voicemail
 TEXT_DE = ("Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! "
