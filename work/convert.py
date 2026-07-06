@@ -18,23 +18,22 @@ import subprocess
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from logger import setup_logger
+from config import config
 
 logger = setup_logger(__name__)
 
 # --- Konfiguration -----------------------------------------------------------
 
-RENDERS_DIR = "renders"
-FINAL_DIR = "final"
+RENDERS_DIR = config.renders_dir
+FINAL_DIR = config.final_dir
 
-# ffmpeg-Parameter
-# AAC: libfdk_aac (höhere Qualität) oder aac (default)
-# MP3: libmp3lame -q:a 2 (VBR ~192 kbps, transparent)
-AAC_CODEC = "aac"  # oder "libfdk_aac" falls vorhanden
-AAC_BITRATE = "192k"
-MP3_VBR = "2"  # 0=best, 9=worst; 2 ≈ 190 kbps VBR, transparent
+# ffmpeg parameters
+AAC_CODEC = config.aac_codec
+AAC_BITRATE = config.aac_bitrate
+MP3_VBR = config.mp3_vbr
 
-# EBU R128: Standard für Broadcast/Voicemail
-LOUDNESS_TARGET = "-23"  # LUFS (Loudness Units relative to Full Scale)
+# EBU R128 loudness target
+LOUDNESS_TARGET = config.loudness_target
 
 # --- Funktionen ---------------------------------------------------------------
 
