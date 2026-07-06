@@ -23,13 +23,21 @@ import torch
 import numpy as np
 import soundfile as sf
 from pathlib import Path
+from dataclasses import dataclass
 from qwen_tts import Qwen3TTSModel
 
 # --- Konfiguration -----------------------------------------------------------
 
 ATTN = "sdpa"
 DTYPE = torch.bfloat16
-DEVICE = "cuda:0"
+
+def get_device():
+    """Auto-detect device: prefer TTS_DEVICE env var, fallback to CUDA or CPU."""
+    if "TTS_DEVICE" in os.environ:
+        return os.environ["TTS_DEVICE"]
+    return "cuda:0" if torch.cuda.is_available() else "cpu"
+
+DEVICE = get_device()
 
 # Pfade
 AUDITION_DIR = "audition"
@@ -44,15 +52,59 @@ REF_TEXT_DE = ("Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! "
 
 # Multiversion-Parameter
 PAUSE_DURATION_SECONDS = 2.0  # Stille zwischen EN und DE
+MAX_TEXT_LENGTH = 5000  # Max characters per text (security: DoS protection)
+
+# --- Datenklassen & Validierung -----------------------------------------------
+
+@dataclass
+class AnsageEntry:
+    id: str
+    text_de: str
+    text_en: str
+
+    def __post_init__(self):
+        if not self.id or not isinstance(self.id, str):
+            raise ValueError(f"Invalid id: {self.id}")
+        try:
+            self.text_de = validate_text(self.text_de)
+            self.text_en = validate_text(self.text_en)
+        except ValueError as e:
+            raise ValueError(f"Validation failed for id={self.id}: {e}")
+
+
+def validate_text(text: str) -> str:
+    """Validate text length and type (DoS protection)."""
+    if not isinstance(text, str):
+        raise TypeError(f"Expected string, got {type(text)}")
+    if not text or not text.strip():
+        raise ValueError("Text cannot be empty")
+    if len(text) > MAX_TEXT_LENGTH:
+        raise ValueError(
+            f"Text too long ({len(text)} > {MAX_TEXT_LENGTH} chars). "
+            f"Approx {len(text) / 100:.0f} seconds of audio."
+        )
+    return text
 
 # --- Funktionen ---------------------------------------------------------------
 
 
 def load_yaml(path):
-    """Lese ansagen.yaml."""
+    """Load and validate ansagen.yaml schema."""
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    return data.get("ansagen", [])
+
+    ansagen = data.get("ansagen", [])
+    if not ansagen:
+        raise ValueError("No 'ansagen' section found in YAML")
+
+    validated = []
+    for i, entry in enumerate(ansagen):
+        try:
+            validated.append(AnsageEntry(**entry))
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Invalid ansage #{i}: {e}")
+
+    return validated
 
 
 def save_clone_prompt(prompt_obj, path):
@@ -128,17 +180,9 @@ def render_batch(ansagen_list):
     os.makedirs(RENDERS_DIR, exist_ok=True)
     
     for i, ansage in enumerate(ansagen_list, 1):
-        ansage_id = ansage["id"]
-        text_de = ansage.get("text_de") or ansage.get("text")
-        text_en = ansage.get("text_en")
-        
-        # Fallback: Falls nur ein "text" mit language-Tag, verwende ihn
-        # oder nehme an, dass alle Einträge unterschiedliche Sprachen sind
-        if not text_en:
-            # Annahme: Falls nicht explizit text_en, skip diese Ansage
-            # oder versuche, Englisch aus dem text zu erraten
-            print(f"  [{i}/{len(ansagen_list)}] ⚠️ {ansage_id}: Keine text_en gefunden, überspringe")
-            continue
+        ansage_id = ansage.id
+        text_de = ansage.text_de
+        text_en = ansage.text_en
 
         print(f"  [{i}/{len(ansagen_list)}] {ansage_id}")
 

@@ -13,6 +13,7 @@ Ausgabe: ./final/<id>.m4a und ./final/<id>.mp3
 """
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -32,6 +33,13 @@ MP3_VBR = "2"  # 0=best, 9=worst; 2 ≈ 190 kbps VBR, transparent
 LOUDNESS_TARGET = "-23"  # LUFS (Loudness Units relative to Full Scale)
 
 # --- Funktionen ---------------------------------------------------------------
+
+
+def validate_filename_stem(stem: str) -> str:
+    """Allow only alphanumeric, underscore, hyphen (Path Traversal protection)."""
+    if not re.match(r'^[a-zA-Z0-9_-]+$', stem):
+        raise ValueError(f"Invalid filename stem: {stem}")
+    return stem
 
 
 def get_loudness_filter(target_lufs="-23"):
@@ -60,7 +68,8 @@ def convert_wav_to_aac(wav_path, output_path, loudness_target="-23"):
         subprocess.run(cmd, check=True, capture_output=True)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"    ERROR (AAC): {e.stderr.decode()[:200]}")
+        stderr = e.stderr.decode() if e.stderr else "(no stderr)"
+        print(f"    ERROR (AAC): {stderr}")
         return False
 
 
@@ -80,7 +89,8 @@ def convert_wav_to_mp3(wav_path, output_path, loudness_target="-23"):
         subprocess.run(cmd, check=True, capture_output=True)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"    ERROR (MP3): {e.stderr.decode()[:200]}")
+        stderr = e.stderr.decode() if e.stderr else "(no stderr)"
+        print(f"    ERROR (MP3): {stderr}")
         return False
 
 
@@ -103,7 +113,12 @@ def batch_convert(renders_dir, final_dir):
     print(f"  Gefunden: {len(wav_files)} WAV-Dateien")
 
     for i, wav_path in enumerate(wav_files, 1):
-        stem = wav_path.stem  # Dateiname ohne .wav
+        try:
+            stem = validate_filename_stem(wav_path.stem)
+        except ValueError as e:
+            print(f"  [{i}/{len(wav_files)}] SKIP {wav_path.name}: {e}")
+            continue
+
         aac_path = os.path.join(final_dir, f"{stem}.m4a")
         mp3_path = os.path.join(final_dir, f"{stem}.mp3")
 
