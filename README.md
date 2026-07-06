@@ -7,6 +7,34 @@ Aktuell ist der Stack darauf ausgelegt eine NVIDIA Blackwell GPU für das Render
 
 ---
 
+## Schnellstart — REST API
+
+Starte den Service einfach mit Docker:
+
+```bash
+docker-compose up oskar-tts-gpu
+# oder: cd work && python api.py
+```
+
+Öffne http://localhost:8000/docs für interaktive API-Dokumentation (Swagger UI).
+
+**Beispiel: Ansagen rendern**
+```bash
+curl -X POST http://localhost:8000/api/render \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ansagen": [{
+      "id": "welcome",
+      "text_de": "Willkommen!",
+      "text_en": "Welcome!"
+    }]
+  }'
+```
+
+Mehr: [DEPLOYMENT.md](DEPLOYMENT.md)
+
+---
+
 ## Warum dieser Stack? (Entscheidungslog)
 
 | Frage | Optionen | Wahl + Begründung |
