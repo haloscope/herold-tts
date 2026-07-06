@@ -25,6 +25,9 @@ import soundfile as sf
 from pathlib import Path
 from dataclasses import dataclass
 from qwen_tts import Qwen3TTSModel
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 
 # --- Konfiguration -----------------------------------------------------------
 
@@ -118,7 +121,7 @@ def save_clone_prompt(prompt_obj, path):
     }
     with open(path, "w") as f:
         json.dump(metadata, f, indent=2)
-    print(f"  Metadaten des Clone-Prompts gespeichert: {path}")
+    logger.info(f"Clone-Prompt metadata saved: {path}")
 
 
 def create_silence(duration_seconds, sample_rate=24000):
@@ -150,26 +153,24 @@ def render_batch(ansagen_list):
     Batch-Render aller Ansagen mit der geclonten Stimme.
     Erzeugt für jede Ansage: EN, DE, und Multiversion (EN+Pause+DE).
     """
-    print(f"\n[Render] Batch-Rendering aus ansagen.yaml ({len(ansagen_list)} Ansagen)")
-    print(f"         -> 3 Versionen pro Ansage: _en, _de, _multiversion")
+    logger.info(f"Batch rendering {len(ansagen_list)} announcements → 3 versions per item: _en, _de, _multiversion")
 
-    # Modell laden
-    print("  Lade Qwen3-TTS-12Hz-1.7B-Base (VoiceClone)...")
+    # Model loading
+    logger.info("Loading Qwen3-TTS-12Hz-1.7B-Base (VoiceClone)...")
     model = Qwen3TTSModel.from_pretrained(
         "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
         device_map=DEVICE, dtype=DTYPE, attn_implementation=ATTN,
     )
 
     # Lade Referenz-Audio
-    print(f"  Lade Stimmen-Referenz: {REF_AUDIO_FILE}")
+    logger.info(f"Loading voice reference: {REF_AUDIO_FILE}")
     if not os.path.exists(REF_AUDIO_FILE):
         raise FileNotFoundError(f"{REF_AUDIO_FILE} nicht gefunden! "
                                 f"Führe erst audition.py aus.")
     ref_wav, ref_sr = sf.read(REF_AUDIO_FILE)
-    print(f"    -> {ref_sr} Hz, {len(ref_wav) / ref_sr:.1f}s")
+    logger.info(f"Reference audio: {ref_sr} Hz, {len(ref_wav) / ref_sr:.1f}s")
 
-    # Erzeuge voice_clone_prompt
-    print(f"  Erzeuge voice_clone_prompt aus Referenz...")
+    logger.info("Creating voice_clone_prompt from reference...")
     voice_clone_prompt = model.create_voice_clone_prompt(
         ref_audio=(ref_wav, ref_sr),
         ref_text=REF_TEXT_DE,
@@ -184,10 +185,9 @@ def render_batch(ansagen_list):
         text_de = ansage.text_de
         text_en = ansage.text_en
 
-        print(f"  [{i}/{len(ansagen_list)}] {ansage_id}")
+        logger.info(f"[{i}/{len(ansagen_list)}] Processing: {ansage_id}")
 
-        # Schritt 1: Rendere Englisch
-        print(f"      Rendering EN...")
+        logger.debug(f"Rendering English for {ansage_id}...")
         try:
             en_wavs, en_sr = model.generate_voice_clone(
                 text=text_en,
@@ -197,13 +197,12 @@ def render_batch(ansagen_list):
             en_wav = en_wavs[0]
             en_output = os.path.join(RENDERS_DIR, f"{ansage_id}_en.wav")
             sf.write(en_output, en_wav, en_sr)
-            print(f"      -> {en_output}")
+            logger.info(f"✓ EN saved: {en_output}")
         except Exception as e:
-            print(f"      ERROR (EN): {e}")
+            logger.error(f"EN rendering failed: {e}", exc_info=True)
             continue
 
-        # Schritt 2: Rendere Deutsch
-        print(f"      Rendering DE...")
+        logger.debug(f"Rendering German for {ansage_id}...")
         try:
             de_wavs, de_sr = model.generate_voice_clone(
                 text=text_de,
@@ -213,32 +212,31 @@ def render_batch(ansagen_list):
             de_wav = de_wavs[0]
             de_output = os.path.join(RENDERS_DIR, f"{ansage_id}_de.wav")
             sf.write(de_output, de_wav, de_sr)
-            print(f"      -> {de_output}")
+            logger.info(f"✓ DE saved: {de_output}")
         except Exception as e:
-            print(f"      ERROR (DE): {e}")
+            logger.error(f"DE rendering failed: {e}", exc_info=True)
             continue
 
-        # Schritt 3: Kombiniere EN + Pause + DE (KEIN extra Rendering!)
-        print(f"      Kombiniere EN + 2s Pause + DE...")
+        logger.debug("Combining EN + 2s pause + DE...")
         try:
             # Stelle sicher, dass beide die gleiche Sample-Rate haben
             if en_sr != de_sr:
-                print(f"      ⚠️ Sample-Rate-Mismatch: EN={en_sr}, DE={de_sr}")
-                sr = en_sr  # Nutze EN als Basis
+                logger.warning(f"Sample-Rate mismatch: EN={en_sr}, DE={de_sr}. Using EN as base.")
+                sr = en_sr
             else:
                 sr = en_sr
 
             combined_wav = combine_en_de(en_wav, de_wav, sr, PAUSE_DURATION_SECONDS)
             multiversion_output = os.path.join(RENDERS_DIR, f"{ansage_id}_multiversion.wav")
             sf.write(multiversion_output, combined_wav, sr)
-            print(f"      -> {multiversion_output}")
+            logger.info(f"✓ Multiversion saved: {multiversion_output}")
         except Exception as e:
-            print(f"      ERROR (Multiversion): {e}")
+            logger.error(f"Multiversion creation failed: {e}", exc_info=True)
             continue
 
     del model
     torch.cuda.empty_cache()
-    print(f"\nFertig! Alle Ansagen in ./renders/ (3 Versionen pro Ansage)")
+    logger.info(f"✓ Batch rendering complete. All files in ./renders/ (3 versions per announcement)")
 
 
 if __name__ == "__main__":
@@ -250,12 +248,10 @@ if __name__ == "__main__":
     if not ansagen:
         raise ValueError("Keine Ansagen in ansagen.yaml gefunden!")
 
-    print(f"CUDA: {torch.cuda.is_available()} | "
-          f"Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
+    cuda_info = "CUDA available" if torch.cuda.is_available() else "CPU mode"
+    device_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
+    logger.info(f"Device: {device_name} ({cuda_info})")
 
     render_batch(ansagen)
 
-    print("\n" + "=" * 70)
-    print("Nächster Schritt: python convert.py")
-    print("  -> Konvertiert ./renders/*.wav zu AAC + MP3 mit Loudness-Normalisierung")
-    print("=" * 70)
+    logger.info("Next step: python convert.py → converts ./renders/*.wav to AAC + MP3 with loudness normalization")

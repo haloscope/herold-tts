@@ -19,6 +19,9 @@ import os
 import torch
 import soundfile as sf
 from qwen_tts import Qwen3TTSModel
+from logger import setup_logger
+
+logger = setup_logger(__name__)
 
 # --- Konfiguration -----------------------------------------------------------
 
@@ -78,22 +81,21 @@ USE_DESIGN_THEN_CLONE =  True
 def save(wav, sr, name):
     path = os.path.join(OUT_DIR, f"{name}.wav")
     sf.write(path, wav, sr)
-    print(f"  -> {path}")
+    logger.info(f"Saved: {path}")
 
 
 def run_custom_voice():
     """CustomVoice: fertige Presets mit expliziten Instruktionen."""
-    print("\n[A] CustomVoice (fertige Presets mit Instruktionen)")
+    logger.info("[A] CustomVoice (preset speakers with instructions)")
     model = Qwen3TTSModel.from_pretrained(
         "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
         device_map=DEVICE, dtype=DTYPE, attn_implementation=ATTN,
     )
-    print("  verfügbare Speaker:", model.get_supported_speakers())
-    print("  verfügbare Sprachen:", model.get_supported_languages())
+    logger.info(f"Available speakers: {model.get_supported_speakers()}")
+    logger.info(f"Available languages: {model.get_supported_languages()}")
 
     for spk, instruct in CUSTOM_SPEAKERS.items():
-        print(f"  Speaker: {spk}")
-        print(f"    Instruct: {instruct[:60]}...")
+        logger.info(f"Speaker: {spk} — {instruct[:60]}...")
         wavs, sr = model.generate_custom_voice(
             text=[TEXT_DE, TEXT_EN],
             language=["German", "English"],
@@ -109,14 +111,13 @@ def run_custom_voice():
 
 def run_voice_design():
     """VoiceDesign: Stimmen per acoustic-Beschreibung."""
-    print("\n[B] VoiceDesign (Stimmen per Beschreibung)")
+    logger.info("[B] VoiceDesign (design voices by description)")
     model = Qwen3TTSModel.from_pretrained(
         "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
         device_map=DEVICE, dtype=DTYPE, attn_implementation=ATTN,
     )
     for name, instruct in VOICE_DESIGNS.items():
-        print(f"  Design: {name}")
-        print(f"    Prompt: {instruct[:60]}...")
+        logger.info(f"Design: {name} — {instruct[:60]}...")
         wavs, sr = model.generate_voice_design(
             text=[TEXT_DE, TEXT_EN],
             language=["German", "English"],
@@ -135,14 +136,14 @@ def run_design_references():
     in beiden Sprachen (DE + EN). Diese sind die Basis für das Design-then-Clone
     Workflow und interessant zum Anhören.
     """
-    print("\n[C] VoiceDesign-Referenzen (alle Designs in DE + EN)")
+    logger.info("[C] VoiceDesign References (all designs in DE + EN)")
     model = Qwen3TTSModel.from_pretrained(
         "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
         device_map=DEVICE, dtype=DTYPE, attn_implementation=ATTN,
     )
 
     for design_name, instruct in VOICE_DESIGNS.items():
-        print(f"  Design: {design_name}")
+        logger.debug(f"Design: {design_name}")
         wavs, sr = model.generate_voice_design(
             text=[TEXT_DE, TEXT_EN],
             language=["German", "English"],
@@ -165,7 +166,7 @@ def run_design_then_clone():
     if not USE_DESIGN_THEN_CLONE:
         return
 
-    print("\n[C] Design-then-Clone (optional, für maximale Stabilität)")
+    logger.info("[D] Design-then-Clone (optional, for maximum stability)")
     # Schritt 1: VoiceDesign erzeugt Referenz
     design_model = Qwen3TTSModel.from_pretrained(
         "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
@@ -174,7 +175,7 @@ def run_design_then_clone():
     ref_instruct = VOICE_DESIGNS["design_female_neutral"]
     ref_text = TEXT_DE  # Referenz auf Deutsch
 
-    print(f"  Erzeuge Referenzclip mit VoiceDesign...")
+    logger.info("Creating reference clip with VoiceDesign...")
     ref_wavs, sr = design_model.generate_voice_design(
         text=ref_text,
         language="German",
@@ -197,7 +198,7 @@ def run_design_then_clone():
     )
 
     # Aus der Referenz klonen (auf DE+EN)
-    print(f"  Klone davon ab...")
+    logger.info("Cloning reference voice...")
     for lang_code, text, name_suffix in [
         ("German", TEXT_DE, "dtc_de"),
         ("English", TEXT_EN, "dtc_en"),
@@ -220,23 +221,16 @@ if __name__ == "__main__":
         if torch.cuda.is_available()
         else "CPU"
     )
-    print(f"CUDA: {torch.cuda.is_available()} | Device: {cuda_device}")
+    logger.info(f"Device: {cuda_device}")
 
     run_custom_voice()
     run_voice_design()
-    run_design_references()  # Referenzen für alle Designs in DE+EN
+    run_design_references()
     run_design_then_clone()
 
-    print("\n" + "=" * 70)
-    print("Fertig. Alle Samples in ./audition/")
-    print("Zu prüfen:")
-    print("  A) CustomVoice (custom_*.wav):")
-    print("     - Welche ist am konsistentesten (DE=EN Emphasis)?")
-    print("  B) VoiceDesign (design_*_*.wav):")
-    print("     - Welche klingt am natürlichsten?")
-    print("  C) VoiceDesign-Referenzen (ref_*.wav) - NEUE Dateien:")
-    print("     - design_female_neutral in DE + EN")
-    print("     - design_male_neutral in DE + EN")
-    print("     (Basis für Design-then-Clone Cloning)")
-    print("=" * 70)
+    logger.info("✓ Audition complete. All samples in ./audition/")
+    logger.info("Review candidates:")
+    logger.info("  A) CustomVoice (custom_*.wav) — consistency check DE=EN")
+    logger.info("  B) VoiceDesign (design_*_*.wav) — naturalness check")
+    logger.info("  C) VoiceDesign References (ref_*.wav) — basis for cloning")
     
