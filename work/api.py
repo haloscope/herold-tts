@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-OSKAR-TTS FastAPI Service
+Herold-TTS FastAPI Service
 
 REST API for batch TTS rendering:
 - POST /api/render — render announcements (WAV)
@@ -28,7 +28,7 @@ from convert import batch_convert
 logger = setup_logger(__name__)
 
 app = FastAPI(
-    title="OSKAR-TTS API",
+    title="Herold-TTS API",
     description="Text-to-Speech with voice cloning",
     version="0.2.0",
 )
@@ -55,7 +55,7 @@ class StatusResponse(BaseModel):
     status: str
     timestamp: str
     device: str
-    service: str = "OSKAR-TTS API"
+    service: str = "Herold-TTS API"
     version: str = "0.2.0"
 
 
@@ -165,7 +165,7 @@ async def docs_redirect():
 @app.on_event("startup")
 async def startup():
     """Initialize on startup."""
-    logger.info(f"OSKAR-TTS API starting on device: {config.device}")
+    logger.info(f"Herold-TTS API starting on device: {config.device}")
     Path(config.renders_dir).mkdir(exist_ok=True)
     Path(config.final_dir).mkdir(exist_ok=True)
 
@@ -173,7 +173,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     """Cleanup on shutdown."""
-    logger.info("OSKAR-TTS API shutting down")
+    logger.info("Herold-TTS API shutting down")
 
 
 # ============================================================================
@@ -183,7 +183,7 @@ async def shutdown():
 if __name__ == "__main__":
     import uvicorn
 
-    logger.info("Starting OSKAR-TTS API server...")
+    logger.info("Starting Herold-TTS API server...")
     uvicorn.run(
         "api:app",
         host="0.0.0.0",

@@ -1,12 +1,12 @@
 version: '3.8'
 
 services:
-  oskar-tts-gpu:
+  herold-tts-gpu:
     build:
       context: .
       dockerfile: Dockerfile
-    image: oskar-tts:latest
-    container_name: oskar-tts-gpu
+    image: herold-tts:latest
+    container_name: herold-tts-gpu
     
     # GPU support
     runtime: nvidia
@@ -39,12 +39,12 @@ services:
     #           capabilities: [gpu]
 
   # Optional: CPU-only variant (when available)
-  # oskar-tts-cpu:
+  # herold-tts-cpu:
   #   build:
   #     context: .
   #     dockerfile: Dockerfile.cpu
-  #   image: oskar-tts:cpu
-  #   container_name: oskar-tts-cpu
+  #   image: herold-tts:cpu
+  #   container_name: herold-tts-cpu
   #   environment:
   #     - TTS_DEVICE=cpu
   #   volumes:

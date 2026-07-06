@@ -1,6 +1,6 @@
-# OSKAR-TTS Deployment Guide
+# Herold-TTS Deployment Guide
 
-Production-ready deployment of OSKAR-TTS with Docker, GPU/CPU support, and REST API.
+Production-ready deployment of Herold-TTS with Docker, GPU/CPU support, and REST API.
 
 ## Quick Start
 
@@ -8,29 +8,29 @@ Production-ready deployment of OSKAR-TTS with Docker, GPU/CPU support, and REST 
 
 ```bash
 # Build image
-docker build -t oskar-tts:latest .
+docker build -t herold-tts:latest .
 
 # Run with GPU
 docker run --gpus all -it \
   -v $(pwd)/audition:/app/audition \
   -v $(pwd)/renders:/app/renders \
   -v $(pwd)/final:/app/final \
-  oskar-tts:latest
+  herold-tts:latest
 
 # Or use docker-compose
-docker-compose up oskar-tts-gpu
+docker-compose up herold-tts-gpu
 ```
 
 ### Docker (CPU-only)
 
 ```bash
-docker build -f Dockerfile.cpu -t oskar-tts:cpu .
+docker build -f Dockerfile.cpu -t herold-tts:cpu .
 docker run -it \
   -e TTS_DEVICE=cpu \
   -v $(pwd)/audition:/app/audition \
   -v $(pwd)/renders:/app/renders \
   -v $(pwd)/final:/app/final \
-  oskar-tts:cpu
+  herold-tts:cpu
 ```
 
 ---
@@ -58,7 +58,7 @@ Response:
   "status": "healthy",
   "timestamp": "2026-07-06T12:34:56.789012",
   "device": "cuda:0",
-  "service": "OSKAR-TTS API",
+  "service": "Herold-TTS API",
   "version": "0.2.0"
 }
 ```
@@ -131,8 +131,8 @@ docker run --rm --gpus all nvidia/cuda:12.8.1-runtime-ubuntu24.04 nvidia-smi
 
 ```bash
 # Override device at runtime
-docker run -e TTS_DEVICE=cuda:1 oskar-tts:latest
-docker run -e TTS_DEVICE=cpu oskar-tts:cpu
+docker run -e TTS_DEVICE=cuda:1 herold-tts:latest
+docker run -e TTS_DEVICE=cpu herold-tts:cpu
 ```
 
 ---
@@ -210,7 +210,7 @@ RuntimeError: ffmpeg not found! Install with: apt-get install ffmpeg
 ```bash
 docker run --gpus all \  # all GPUs
   -e TTS_DEVICE=cuda:0 \
-  oskar-tts:latest
+  herold-tts:latest
 ```
 
 Or use load balancer (nginx, Traefik) in front of multiple API instances.

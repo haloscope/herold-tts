@@ -1,4 +1,4 @@
-"""Centralized configuration for OSKAR-TTS scripts."""
+"""Centralized configuration for Herold-TTS scripts."""
 
 import os
 import torch

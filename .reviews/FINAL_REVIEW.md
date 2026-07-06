@@ -241,7 +241,7 @@ Coverage target: 80% → Achieved
 
 ## Final Verdict
 
-**OSKAR-TTS v0.3.0 is production-ready.** 
+**Herold-TTS v0.3.0 is production-ready.** 
 
 The codebase has transformed from a prototype (5.2/10) to a mature, well-tested, secure system (8.6/10). All critical security issues are resolved, performance is optimized, and deployment is straightforward via Docker + REST API.
 
