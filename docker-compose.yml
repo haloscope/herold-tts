@@ -1,17 +1,57 @@
+version: '3.8'
+
 services:
-  qwen3-tts:
-    build: .
-    image: qwen3-tts-ansagen:cu128
-    container_name: qwen3-tts
-    gpus: all                      # gibt der Container die 5090 frei
+  oskar-tts-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: oskar-tts:latest
+    container_name: oskar-tts-gpu
+    
+    # GPU support
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-      - HF_HOME=/cache/hf
-      # - HF_TOKEN=hf_xxx           # nur falls HF mal einen Token verlangt
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - TTS_DEVICE=cuda:0  # Override default device
+    
+    # Volume mounts
     volumes:
-      - ./cache:/cache             # HF-Modellcache (persistent, ~9 GB für 2x 1.7B)
-      - ./work:/work               # Skripte + erzeugte Audios
-    ports:
-      - "8000:8000"                # für das interaktive Audition-Web-UI
+      - ./audition:/app/audition
+      - ./renders:/app/renders
+      - ./final:/app/final
+      - ./ansagen.yaml:/app/ansagen.yaml:ro
+    
+    # Working directory
+    working_dir: /app/work
+    
+    # Keep container running
     stdin_open: true
     tty: true
+    
+    # Resource limits (optional)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Optional: CPU-only variant (when available)
+  # oskar-tts-cpu:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.cpu
+  #   image: oskar-tts:cpu
+  #   container_name: oskar-tts-cpu
+  #   environment:
+  #     - TTS_DEVICE=cpu
+  #   volumes:
+  #     - ./audition:/app/audition
+  #     - ./renders:/app/renders
+  #     - ./final:/app/final
+  #     - ./ansagen.yaml:/app/ansagen.yaml:ro
+  #   working_dir: /app/work
+  #   stdin_open: true
+  #   tty: true

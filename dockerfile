@@ -1,33 +1,80 @@
-# Qwen3-TTS Container für Blackwell (sm_120)
-# WICHTIG: CUDA 12.8 ist Pflicht. Ältere Images (12.1 / 12.4) laufen auf Blackwell
-# Karten NICHT ("no kernel image available for execution on the device").
-# runtime (NICHT devel): wir kompilieren nichts, PyTorch cu128 bringt CUDA+cuDNN
-# selbst mit. devel würde nur fette statische Libs mitschleppen (~3x Größe).
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+# OSKAR-TTS: GPU-optimized Docker image (CUDA 12.8, PyTorch)
+# Multi-stage build for minimal final image size
+# Non-root user for security hardening
 
-ENV DEBIAN_FRONTEND=noninteractive
+# ============================================================================
+# Stage 1: Builder (large, contains compile toolchain)
+# ============================================================================
+FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04 AS builder
 
+LABEL maintainer="OSKAR-TTS Project"
+LABEL description="OSKAR-TTS: Open Source Text-to-Speech with voice cloning"
+
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3.12 python3.12-venv python3-pip \
-        ffmpeg sox git curl ca-certificates \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    build-essential \
+    git \
+    ffmpeg \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Isoliertes venv, hält das System-Python sauber
+# Create Python virtual environment
 RUN python3.12 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# PyTorch + torchaudio mit CUDA 12.8 (Blackwell-fähig) ZUERST und als PAAR
-# installieren. Wichtig: torchaudio MUSS mit, sonst zieht der spätere
-# qwen-tts-Install eine CUDA-13-torchaudio nach -> Mismatch
-# (libcudart.so.13 fehlt, torchaudio crasht beim Laden).
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu128
+# Upgrade pip, setuptools, wheel
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Qwen3-TTS Laufzeit + WAV-IO + YAML-Support
-RUN pip install --no-cache-dir qwen-tts soundfile pyyaml
+# Copy requirements and install dependencies
+COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# HuggingFace-Cache auf gemountetes Volume -> Modelle nur einmal herunterladen
-ENV HF_HOME=/cache/hf
+# ============================================================================
+# Stage 2: Runtime (minimal, only runtime deps)
+# ============================================================================
+FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04
 
-WORKDIR /work
-CMD ["bash"]
+LABEL maintainer="OSKAR-TTS Project"
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    ffmpeg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r oskar && useradd -r -g oskar oskar
+
+# Copy venv from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set working directory
+WORKDIR /app
+
+# Copy application code
+COPY work/ /app/work/
+COPY audition/ /app/audition/
+COPY ansagen.yaml /app/
+
+# Set environment variables
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    CUDA_DEVICE_ORDER=PCI_BUS_ID \
+    NVIDIA_VISIBLE_DEVICES=all
+
+# Health check: verify scripts are importable
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import sys; sys.path.insert(0, '/app/work'); from render import render_batch; print('OK')" || exit 1
+
+# Change ownership to non-root user
+RUN chown -R oskar:oskar /app
+
+# Switch to non-root user
+USER oskar
+
+# Default command: bash (can be overridden)
+CMD ["/bin/bash"]

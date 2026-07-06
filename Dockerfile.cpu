@@ -1,0 +1,80 @@
+# OSKAR-TTS: CPU-only Docker image (no CUDA required)
+# Multi-stage build, optimized for CPU inference
+# Non-root user for security hardening
+
+# ============================================================================
+# Stage 1: Builder
+# ============================================================================
+FROM ubuntu:24.04 AS builder
+
+LABEL maintainer="OSKAR-TTS Project"
+LABEL description="OSKAR-TTS: CPU-only variant (no GPU required)"
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    build-essential \
+    git \
+    ffmpeg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create Python virtual environment
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Upgrade pip, setuptools, wheel
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Copy requirements and install dependencies (CPU version of torch)
+COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# ============================================================================
+# Stage 2: Runtime (minimal)
+# ============================================================================
+FROM ubuntu:24.04
+
+LABEL maintainer="OSKAR-TTS Project"
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    ffmpeg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r oskar && useradd -r -g oskar oskar
+
+# Copy venv from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set working directory
+WORKDIR /app
+
+# Copy application code
+COPY work/ /app/work/
+COPY audition/ /app/audition/
+COPY ansagen.yaml /app/
+
+# Set environment variables (force CPU mode)
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    TTS_DEVICE=cpu \
+    TORCH_NUM_THREADS=4
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import sys; sys.path.insert(0, '/app/work'); from render import render_batch; print('OK')" || exit 1
+
+# Change ownership to non-root user
+RUN chown -R oskar:oskar /app
+
+# Switch to non-root user
+USER oskar
+
+# Default command: bash
+CMD ["/bin/bash"]
