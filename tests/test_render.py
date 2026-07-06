@@ -1,13 +1,7 @@
 """Tests for render.py validation and schema."""
 
 import pytest
-import sys
-from pathlib import Path
-
-# Add work dir to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "work"))
-
-from render import validate_text, AnsageEntry, MAX_TEXT_LENGTH
+from herold.render import validate_text, AnsageEntry, MAX_TEXT_LENGTH
 
 
 class TestValidateText:

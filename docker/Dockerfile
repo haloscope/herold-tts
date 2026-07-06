@@ -56,9 +56,9 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 
 # Copy application code
-COPY work/ /app/work/
-COPY audition/ /app/audition/
-COPY ansagen.yaml /app/
+COPY herold/ /app/herold/
+COPY resources/ /app/resources/
+COPY requirements.txt /app/
 
 # Set environment variables
 ENV PATH="/opt/venv/bin:$PATH" \
@@ -66,9 +66,9 @@ ENV PATH="/opt/venv/bin:$PATH" \
     CUDA_DEVICE_ORDER=PCI_BUS_ID \
     NVIDIA_VISIBLE_DEVICES=all
 
-# Health check: verify scripts are importable
+# Health check: verify package is importable
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import sys; sys.path.insert(0, '/app/work'); from render import render_batch; print('OK')" || exit 1
+    CMD python3 -c "from herold.render import render_batch; print('OK')" || exit 1
 
 # Change ownership to non-root user
 RUN chown -R oskar:oskar /app

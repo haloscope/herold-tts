@@ -20,10 +20,11 @@ venv
 Thumbs.db
 
 # Project-specific
-renders/
-final/
+data/renders/
+data/final/
 .reviews/
 tests/
 
 # Documentation
+docs/
 *.md

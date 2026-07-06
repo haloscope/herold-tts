@@ -17,13 +17,13 @@ services:
     
     # Volume mounts
     volumes:
-      - ./audition:/app/audition
-      - ./renders:/app/renders
-      - ./final:/app/final
-      - ./ansagen.yaml:/app/ansagen.yaml:ro
-    
+      - ./data/audition:/app/data/audition
+      - ./data/renders:/app/data/renders
+      - ./data/final:/app/data/final
+      - ./resources/ansagen.yaml:/app/resources/ansagen.yaml:ro
+
     # Working directory
-    working_dir: /app/work
+    working_dir: /app
     
     # Keep container running
     stdin_open: true
@@ -48,10 +48,10 @@ services:
   #   environment:
   #     - TTS_DEVICE=cpu
   #   volumes:
-  #     - ./audition:/app/audition
-  #     - ./renders:/app/renders
-  #     - ./final:/app/final
-  #     - ./ansagen.yaml:/app/ansagen.yaml:ro
-  #   working_dir: /app/work
+  #     - ./data/audition:/app/data/audition
+  #     - ./data/renders:/app/data/renders
+  #     - ./data/final:/app/data/final
+  #     - ./resources/ansagen.yaml:/app/resources/ansagen.yaml:ro
+  #   working_dir: /app
   #   stdin_open: true
   #   tty: true

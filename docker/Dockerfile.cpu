@@ -56,9 +56,9 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 
 # Copy application code
-COPY work/ /app/work/
-COPY audition/ /app/audition/
-COPY ansagen.yaml /app/
+COPY herold/ /app/herold/
+COPY resources/ /app/resources/
+COPY requirements.txt /app/
 
 # Set environment variables (force CPU mode)
 ENV PATH="/opt/venv/bin:$PATH" \
@@ -68,7 +68,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import sys; sys.path.insert(0, '/app/work'); from render import render_batch; print('OK')" || exit 1
+    CMD python3 -c "from herold.render import render_batch; print('OK')" || exit 1
 
 # Change ownership to non-root user
 RUN chown -R herold:herold /app

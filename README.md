@@ -13,7 +13,7 @@ Starte den Service einfach mit Docker:
 
 ```bash
 docker-compose up herold-tts-gpu
-# oder: cd work && python api.py
+# oder: python -m herold.api
 ```
 
 Öffne http://localhost:8000/docs für interaktive API-Dokumentation (Swagger UI).
@@ -31,7 +31,7 @@ curl -X POST http://localhost:8000/api/render \
   }'
 ```
 
-Mehr: [DEPLOYMENT.md](DEPLOYMENT.md)
+Mehr: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ---
 
@@ -75,11 +75,11 @@ docker compose exec qwen3-tts python -c \
 
 **Batch-Skript** (reproduzierbar, empfohlen)
 ```bash
-docker compose exec qwen3-tts python /work/audition.py
+docker compose exec qwen3-tts python -m herold.audition
 # Ergebnis: ./audition/*.wav  (auf dem Host)
 ```
 
-Erzeugt Samples für mehrere Preset-Stimmen und VoiceDesign-Beschreibungen.
+Erzeugt Samples für mehrere Preset-Stimmen und VoiceDesign-Beschreibungen in `data/audition/*.wav`.
 → Alle anhören, Favorit notieren.
 
 ---
@@ -100,7 +100,7 @@ ansagen:
 
 ### Schritt 4: Batch-Render (3 Versionen pro Ansage, aber nur 2 Synthesen!)
 ```bash
-docker compose exec qwen3-tts python /work/render.py
+docker compose exec qwen3-tts python -m herold.render
 ```
 
 Rendert für **jede Ansage automatisch 3 Versionen**:
@@ -110,22 +110,22 @@ Rendert für **jede Ansage automatisch 3 Versionen**:
 
 **Render-Zeit-Ersparnis:** Die Multiversion wird aus EN+DE kombiniert (kein extra TTS-Rendering).
 
-**Output:** `./renders/<id>_{en,de,multiversion}.wav` (24 kHz WAV-Master)
+**Output:** `./data/renders/<id>_{en,de,multiversion}.wav` (24 kHz WAV-Master)
 
 ### Schritt 5: Konvertierung zu AAC + MP3
 ```bash
-docker compose exec qwen3-tts python /work/convert.py
+docker compose exec qwen3-tts python -m herold.convert
 ```
 
 - Konvertiert **alle** WAV-Dateien (EN, DE, Multiversion)
 - Loudness-Normalisierung (EBU R128: -23 LUFS)
 - Beide Formate: `.m4a` (AAC) + `.mp3` (VBR ~192 kbps)
 
-**Output:** `./final/<id>_{en,de,multiversion}.{m4a,mp3}`
+**Output:** `./data/final/<id>_{en,de,multiversion}.{m4a,mp3}`
 
 Zugriff im Windows-Explorer:
 ```
-\\wsl$\Debian\home\sorb\tts\work\final\
+\\wsl$\Debian\home\sorb\herold-tts\data\final\
   ├── welcome_en.m4a / .mp3
   ├── welcome_de.m4a / .mp3
   ├── welcome_multiversion.m4a / .mp3
@@ -136,20 +136,20 @@ Zugriff im Windows-Explorer:
 
 ## Reproduzierbar von 0
 
-1. Ordner mit Dateien anlegen:
-   - `Dockerfile`, `docker-compose.yml`
-   - `audition.py`, `render.py`, `convert.py`
-   - `ansagen.yaml` (editieren!)
+1. Repository klonen:
+   ```bash
+   git clone <repo> herold-tts && cd herold-tts
+   ```
 
 2. `docker compose build && docker compose up -d`
 
 3. Blackwell-Check (oben)
 
-4. **Audition** (optional): `docker compose exec qwen3-tts python /work/audition.py`
+4. **Audition** (optional): `docker compose exec qwen3-tts python -m herold.audition`
 
-5. **Render**: `docker compose exec qwen3-tts python /work/render.py` → `renders/*.wav`
+5. **Render**: `docker compose exec qwen3-tts python -m herold.render` → `data/renders/*.wav`
 
-6. **Convert**: `docker compose exec qwen3-tts python /work/convert.py` → `final/*.m4a` + `final/*.mp3`
+6. **Convert**: `docker compose exec qwen3-tts python -m herold.convert` → `data/final/*.m4a` + `data/final/*.mp3`
 
 ---
 

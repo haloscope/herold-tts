@@ -1,13 +1,7 @@
 """Tests for convert.py validation and path safety."""
 
 import pytest
-import sys
-from pathlib import Path
-
-# Add work dir to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "work"))
-
-from convert import validate_filename_stem
+from herold.convert import validate_filename_stem
 
 
 class TestValidateFilenameStem:

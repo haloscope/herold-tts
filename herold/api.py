@@ -13,17 +13,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from pathlib import Path
-import sys
 import os
 from datetime import datetime
-from logger import setup_logger
-
-# Add work dir to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from config import config
-from render import render_batch, load_yaml, AnsageEntry
-from convert import batch_convert
+from .logger import setup_logger
+from .config import config
+from .render import render_batch, load_yaml, AnsageEntry
+from .convert import batch_convert
 
 logger = setup_logger(__name__)
 

@@ -17,8 +17,8 @@ import re
 import subprocess
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from logger import setup_logger
-from config import config
+from .logger import setup_logger
+from .config import config
 
 logger = setup_logger(__name__)
 
