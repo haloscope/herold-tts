@@ -25,8 +25,8 @@ import soundfile as sf
 from pathlib import Path
 from dataclasses import dataclass
 from qwen_tts import Qwen3TTSModel
-from logger import setup_logger
-from config import config
+from .logger import setup_logger
+from .config import config
 
 logger = setup_logger(__name__)
 

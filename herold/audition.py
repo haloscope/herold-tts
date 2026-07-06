@@ -20,8 +20,8 @@ import torch
 import soundfile as sf
 from contextlib import contextmanager
 from qwen_tts import Qwen3TTSModel
-from logger import setup_logger
-from config import config
+from .logger import setup_logger
+from .config import config
 
 logger = setup_logger(__name__)
 
