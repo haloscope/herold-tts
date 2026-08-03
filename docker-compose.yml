@@ -45,21 +45,26 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
-  # Optional: CPU-only variant (when available)
-  # herold-tts-cpu:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile.cpu
-  #   image: herold-tts:cpu
-  #   container_name: herold-tts-cpu
-  #   environment:
-  #     - TTS_DEVICE=cpu
-  #   volumes:
-  #     - ./data/audition:/app/data/audition
-  #     - ./data/renders:/app/data/renders
-  #     - ./data/final:/app/data/final
-  #     - ./resources/ansagen.yaml:/app/resources/ansagen.yaml:ro
-  #     - ./data/hf-cache:/app/.cache/huggingface  # shared model cache, see GPU service
-  #   working_dir: /app
-  #   stdin_open: true
-  #   tty: true
+  # CPU-only variant. Not started by default — opt in via:
+  #   docker compose --profile cpu up -d   → API on http://localhost:8001
+  herold-tts-cpu:
+    profiles: ["cpu"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.cpu
+    image: herold-tts:cpu
+    container_name: herold-tts-cpu
+    command: ["python", "-m", "herold.api"]
+    ports:
+      - "8001:8000"
+    environment:
+      - TTS_DEVICE=cpu
+    volumes:
+      - ./data/audition:/app/data/audition
+      - ./data/renders:/app/data/renders
+      - ./data/final:/app/data/final
+      - ./resources/ansagen.yaml:/app/resources/ansagen.yaml:ro
+      - ./data/hf-cache:/app/.cache/huggingface  # shared model cache, see GPU service
+    working_dir: /app
+    stdin_open: true
+    tty: true
