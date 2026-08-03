@@ -81,9 +81,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
     NUMBA_CACHE_DIR=/tmp/numba_cache \
     HF_HOME=/app/.cache/huggingface
 
-# Health check: verify package is importable
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "from herold.render import render_batch; print('OK')" || exit 1
+# Health check: light HTTP probe against the API. Importing herold.render here
+# (pre-v0.4.1) loaded the full torch/qwen-tts stack on every probe — CPU-intensive
+# and >10s on slower hosts, flagging healthy containers unhealthy. start-period
+# covers the API's slow first import.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/status', timeout=5)" || exit 1
 
 # Change ownership to non-root user
 RUN chown -R oskar:oskar /app

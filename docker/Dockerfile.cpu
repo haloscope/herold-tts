@@ -30,7 +30,13 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Copy requirements and install dependencies (CPU version of torch)
 COPY requirements.txt /tmp/
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+# torch/torchaudio explicitly from the CPU wheel index BEFORE the general install:
+# the default PyPI wheels bundle the CUDA runtime (~4 GB dead weight in this image,
+# observed 2026-08-03: 9.8 GB image, ~70 min build). The pre-installed pair satisfies
+# the torch/torchaudio pins in requirements.txt, so pip skips them below.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+        torch torchaudio && \
+    pip install --no-cache-dir -r /tmp/requirements.txt
 
 # qwen-tts installed separately with --no-deps: its own dependency resolution
 # pulls an incompatible torchaudio, breaking the torch/torchaudio pair above.
@@ -82,9 +88,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
     NUMBA_CACHE_DIR=/tmp/numba_cache \
     HF_HOME=/app/.cache/huggingface
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "from herold.render import render_batch; print('OK')" || exit 1
+# Health check: light HTTP probe against the API. Importing herold.render here
+# (pre-v0.4.1) loaded the full torch/qwen-tts stack on every probe — CPU-intensive
+# and >10s on slower hosts, flagging healthy containers unhealthy. start-period
+# covers the API's slow first import.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/status', timeout=5)" || exit 1
 
 # Change ownership to non-root user
 RUN chown -R herold:herold /app
