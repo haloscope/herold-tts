@@ -24,6 +24,12 @@ services:
       - ./data/renders:/app/data/renders
       - ./data/final:/app/data/final
       - ./resources/ansagen.yaml:/app/resources/ansagen.yaml:ro
+      # HuggingFace model cache (HF_HOME in the Dockerfile). Without this mount the
+      # cache lives in the container's writable layer and every image rebuild forces
+      # a full model re-download (~3.8-11 GB, see docs/HARDWARE.md). Kept under
+      # ./data/ so the uid-999 chown from docs/DEPLOYMENT.md "Volume Permissions"
+      # covers it too.
+      - ./data/hf-cache:/app/.cache/huggingface
 
     # Working directory
     working_dir: /app
@@ -55,6 +61,7 @@ services:
   #     - ./data/renders:/app/data/renders
   #     - ./data/final:/app/data/final
   #     - ./resources/ansagen.yaml:/app/resources/ansagen.yaml:ro
+  #     - ./data/hf-cache:/app/.cache/huggingface  # shared model cache, see GPU service
   #   working_dir: /app
   #   stdin_open: true
   #   tty: true

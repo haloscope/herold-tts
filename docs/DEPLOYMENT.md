@@ -43,7 +43,7 @@ both uid `999`). Docker auto-creates missing bind-mount source directories on th
 Before the first run, make sure the host-side data directories are owned by uid `999`:
 
 ```bash
-mkdir -p data/audition data/renders data/final
+mkdir -p data/audition data/renders data/final data/hf-cache
 chown -R 999:999 data/
 ```
 

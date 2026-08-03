@@ -26,15 +26,11 @@ calibration points, not guarantees.
 | AAC output (`.m4a`, 192 kbps) | ~24 KB per second of audio | measured: 8.64 s → 212 KB |
 | MP3 output (VBR ~192 kbps) | ~11 KB per second of audio | measured: 8.64 s → 94 KB |
 
-**Important:** the HuggingFace cache (`HF_HOME=/app/.cache/huggingface`) is **not** a mounted
-volume in `docker-compose.yml` — it lives inside the container's writable layer. Every
-`docker compose build` + container recreate throws it away, forcing a full re-download (~3.8–11 GB)
-on the next `audition`/`render` run. If you rebuild often, add a volume mount for it, e.g.:
-
-```yaml
-volumes:
-  - ./data/hf-cache:/app/.cache/huggingface
-```
+**Note:** the HuggingFace cache (`HF_HOME=/app/.cache/huggingface`) is volume-mounted to
+`./data/hf-cache` in `docker-compose.yml` (since v0.3.5), so models survive image rebuilds and
+container recreates. Without that mount, every rebuild would force a full re-download (~3.8–11 GB)
+on the next `audition`/`render` run. The host directory must be writable by uid `999` like the
+other `data/` mounts (see docs/DEPLOYMENT.md, "Volume Permissions").
 
 ---
 

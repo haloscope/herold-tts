@@ -34,5 +34,5 @@ zusammenführen. Nebenziele: CLAUDE.md für Claude Code etablieren, Signature-St
 
 - [x] `git push origin main backup/main-v0.3.0` — erledigt 2026-08-03 nach mDNSResponder-Reset
 - [x] `git push origin --delete patch-03520` — erledigt 2026-08-03
-- [ ] Optional: HF-Cache-Volume in `docker-compose.yml` (siehe docs/HARDWARE.md), um
-      3.8–11 GB Re-Downloads nach Image-Rebuilds zu vermeiden
+- [x] HF-Cache-Volume in `docker-compose.yml` — erledigt 2026-08-03 in v0.3.5
+      (`./data/hf-cache` → `HF_HOME`; auf der Testmaschine noch unverifiziert)

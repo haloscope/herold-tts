@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.5
+
+**Release Date:** 2026-08-03
+
+### 🔧 Maintenance
+
+- **HuggingFace model cache persisted:** `docker-compose.yml` now mounts `./data/hf-cache` to
+  `HF_HOME` (`/app/.cache/huggingface`), so Qwen3-TTS model weights (~3.8–11 GB) survive image
+  rebuilds and container recreates instead of being re-downloaded on every `audition`/`render`
+  run (open point from AAR 2026-08-03 / docs/HARDWARE.md). `data/hf-cache/` is gitignored;
+  the setup instructions in docs/DEPLOYMENT.md ("Volume Permissions") and the cache note in
+  docs/HARDWARE.md were updated accordingly.
+
+---
+
 ## v0.3.4
 
 **Release Date:** 2026-08-03
