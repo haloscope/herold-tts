@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herold-TTS Demo</title>
+<style>
+  :root { --fg: #1a1a1a; --bg: #f7f6f3; --card: #ffffff; --line: #ddd8d0;
+          --accent: #275b7a; --err: #a3352c; --ok: #2c6e49; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+         color: var(--fg); background: var(--bg); line-height: 1.5; }
+  header { background: var(--accent); color: #fff; padding: 1rem 1.5rem; }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  header .meta { font-size: 0.85rem; opacity: 0.85; }
+  header a { color: #cfe3ef; }
+  main { max-width: 52rem; margin: 0 auto; padding: 1.5rem; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+            padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+  h2 { margin-top: 0; font-size: 1.05rem; }
+  label { display: block; font-weight: 600; font-size: 0.9rem; margin: 0.75rem 0 0.25rem; }
+  input[type=text], textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--line);
+    border-radius: 4px; font: inherit; font-size: 0.95rem; }
+  textarea { min-height: 4.5rem; resize: vertical; }
+  button { margin-top: 1rem; padding: 0.55rem 1.2rem; font: inherit; font-weight: 600;
+    color: #fff; background: var(--accent); border: 0; border-radius: 4px; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.secondary { background: #5a6b74; }
+  .status { margin-top: 0.75rem; font-size: 0.9rem; }
+  .status.error { color: var(--err); }
+  .status.ok { color: var(--ok); }
+  .spinner { display: inline-block; width: 0.9em; height: 0.9em; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%; vertical-align: -0.15em;
+    animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--line); }
+  audio { width: 100%; max-width: 20rem; height: 2rem; }
+  .hint { font-size: 0.85rem; color: #666; }
+  code { background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Herold-TTS — Demo-Webservice</h1>
+  <div class="meta" id="service-meta">Verbinde mit API …</div>
+</header>
+<main>
+  <section>
+    <h2>1 · Ansage rendern</h2>
+    <p class="hint">Erzeugt pro Ansage drei WAV-Dateien mit der Signature-Stimme:
+      <code>_en</code>, <code>_de</code> und <code>_multiversion</code> (EN + 2&nbsp;s Pause + DE).
+      Exemplarischer Ablauf: <code>POST /api/render</code> → <code>GET /api/jobs/{id}</code> pollen
+      → Dateien über <code>/api/files</code> abrufen. Alle Endpoints:
+      <a href="/docs">Swagger UI</a>.</p>
+    <form id="render-form">
+      <label for="ansage-id">ID (Dateiname, nur a–z, 0–9, _ , -)</label>
+      <input type="text" id="ansage-id" required pattern="[a-zA-Z0-9_-]+" value="demo">
+      <label for="text-en">Text Englisch</label>
+      <textarea id="text-en" required>Hello, I'm delighted to welcome you to Oscar! This is the Open Source Communication Platform of Schleswig-Holstein.</textarea>
+      <label for="text-de">Text Deutsch</label>
+      <textarea id="text-de" required>Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins.</textarea>
+      <button type="submit" id="render-btn">Rendern</button>
+    </form>
+    <div class="status" id="render-status"></div>
+  </section>
+
+  <section>
+    <h2>2 · Zu AAC + MP3 konvertieren</h2>
+    <p class="hint">Konvertiert alle gerenderten WAVs mit Loudness-Normalisierung
+      (EBU&nbsp;R128, −23&nbsp;LUFS) zu <code>.m4a</code> und <code>.mp3</code>
+      (<code>POST /api/convert</code>).</p>
+    <button id="convert-btn" class="secondary">Konvertieren</button>
+    <div class="status" id="convert-status"></div>
+  </section>
+
+  <section>
+    <h2>3 · Dateien</h2>
+    <p class="hint">Inhalt von <code>data/renders/</code> und <code>data/final/</code>
+      (<code>GET /api/files</code>). Anhören direkt im Browser, Download per Klick auf den Namen.</p>
+    <button id="refresh-btn" class="secondary">Aktualisieren</button>
+    <div id="file-list"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const POLL_INTERVAL_MS = 3000;
+
+function setStatus(el, html, cls) {
+  el.className = "status" + (cls ? " " + cls : "");
+  el.innerHTML = html;
+}
+
+async function api(path, options) {
+  const resp = await fetch(path, options);
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(body.detail || (resp.status + " " + resp.statusText));
+  }
+  return body;
+}
+
+// Poll /api/jobs/{id} until done/failed
+async function waitForJob(jobId, statusEl, label) {
+  for (;;) {
+    const job = await api("/api/jobs/" + jobId);
+    if (job.status === "done") return job;
+    if (job.status === "failed") throw new Error(job.error || "Job fehlgeschlagen");
+    setStatus(statusEl, '<span class="spinner"></span> ' + label +
+      " läuft … (Job <code>" + jobId + "</code>, Status: " + job.status + ")");
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  }
+}
+
+// --- Service-Status -----------------------------------------------------
+
+async function loadServiceMeta() {
+  try {
+    const s = await api("/api/status");
+    $("service-meta").innerHTML = s.service + " v" + s.version +
+      " · Gerät: <code>" + s.device + "</code> · <a href='/docs'>API-Doku</a>";
+  } catch (e) {
+    $("service-meta").textContent = "API nicht erreichbar: " + e.message;
+  }
+}
+
+// --- Rendern ------------------------------------------------------------
+
+$("render-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const btn = $("render-btn"), st = $("render-status");
+  const id = $("ansage-id").value.trim();
+  btn.disabled = true;
+  try {
+    const resp = await api("/api/render", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ansagen: [{ id: id, text_de: $("text-de").value, text_en: $("text-en").value }],
+      }),
+    });
+    await waitForJob(resp.job_id, st, "Rendering");
+    setStatus(st, "✓ Fertig — drei WAV-Dateien erzeugt (siehe Abschnitt 3).", "ok");
+    await loadFiles();
+  } catch (e) {
+    setStatus(st, "Fehler: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// --- Konvertieren -------------------------------------------------------
+
+$("convert-btn").addEventListener("click", async () => {
+  const btn = $("convert-btn"), st = $("convert-status");
+  btn.disabled = true;
+  try {
+    const resp = await api("/api/convert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    await waitForJob(resp.job_id, st, "Konvertierung");
+    setStatus(st, "✓ Fertig — AAC- und MP3-Dateien liegen in data/final/.", "ok");
+    await loadFiles();
+  } catch (e) {
+    setStatus(st, "Fehler: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// --- Dateiliste ---------------------------------------------------------
+
+function formatSize(bytes) {
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
+  return Math.round(bytes / 1024) + " KB";
+}
+
+async function loadFiles() {
+  const target = $("file-list");
+  try {
+    const data = await api("/api/files");
+    if (!data.files.length) {
+      target.innerHTML = "<p class='hint'>Noch keine Dateien vorhanden.</p>";
+      return;
+    }
+    const rows = data.files.map((f) =>
+      "<tr><td><a href='" + f.url + "'>" + f.name + "</a></td>" +
+      "<td>" + f.dir + "</td>" +
+      "<td>" + formatSize(f.size) + "</td>" +
+      "<td><audio controls preload='none' src='" + f.url + "'></audio></td></tr>"
+    ).join("");
+    target.innerHTML = "<table><thead><tr><th>Datei</th><th>Ordner</th><th>Größe</th>" +
+      "<th>Anhören</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  } catch (e) {
+    target.innerHTML = "<p class='status error'>Fehler beim Laden: " + e.message + "</p>";
+  }
+}
+
+$("refresh-btn").addEventListener("click", loadFiles);
+
+loadServiceMeta();
+loadFiles();
+</script>
+</body>
+</html>
