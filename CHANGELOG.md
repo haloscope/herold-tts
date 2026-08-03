@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.4.2
+
+**Release Date:** 2026-08-03
+
+### ✨ Features
+
+- **CI-Pipeline (`.gitlab-ci.yml`, ADR 0003):** pytest bei jedem Push (CPU-torch, Modell
+  gemockt); auf `main` zusätzlich Build + Registry-Push beider Images
+  (`…/gpu:<version|latest>`, `…/cpu:<version|latest>`, Version aus `herold/__init__.py`);
+  Cleanup-Job hält pro Image nur aktuelle + Vorgänger-Version in der Registry (`keep_n=2`,
+  `latest` bleibt)
+- Zielmaschinen können damit fertige Images pullen statt selbst zu bauen; lokales Bauen
+  bleibt als Fallback dokumentiert (docs/DEPLOYMENT.md)
+
+### ⚙️ Setup-Hinweise (einmalig)
+
+- Container Registry im Projekt aktivieren
+- CI/CD-Variable `REGISTRY_CLEANUP_TOKEN` anlegen (Project Access Token, Rolle Maintainer,
+  Scope `api`, masked) — ohne sie schlägt nur der Cleanup-Job fehl (`allow_failure`)
+
+---
+
 ## v0.4.1
 
 **Release Date:** 2026-08-03

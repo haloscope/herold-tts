@@ -1,0 +1,93 @@
+# GitLab CI: Tests bei jedem Push, Image-Builds + Registry-Push nur auf main.
+# Siehe docs/adr/0003-ci-image-builds.md.
+#
+# Runner-Voraussetzungen:
+#   - Docker-Executor mit durchgereichtem /var/run/docker.sock
+#     (dadurch nutzt der Build den Layer-Cache des Runner-Hosts — Folgebuilds sind schnell)
+#   - Internetzugang: Docker Hub, PyPI, download.pytorch.org
+#   - Container Registry im Projekt aktiviert
+#
+# Registry-Aufbewahrung: pro Image nur aktuelle + Vorgänger-Version (cleanup-Job, keep_n=2);
+# der Tag "latest" bleibt immer stehen.
+
+stages:
+  - test
+  - build
+  - cleanup
+
+variables:
+  GPU_IMAGE: $CI_REGISTRY_IMAGE/gpu
+  CPU_IMAGE: $CI_REGISTRY_IMAGE/cpu
+
+test:
+  stage: test
+  image: python:3.12-slim
+  variables:
+    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+  cache:
+    key: pip-test
+    paths:
+      - .cache/pip
+  before_script:
+    # CPU-Wheels wie in docker/Dockerfile.cpu: ohne CUDA-Ballast (~150 MB statt ~5 GB)
+    - pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch torchaudio
+    - pip install --quiet -r requirements.txt
+  script:
+    - pytest -q
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# Gemeinsame Basis der Docker-Jobs
+.docker-job:
+  image: docker:27-cli
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - VERSION=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' herold/__init__.py | head -1)
+    - echo "Baue Version $VERSION"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+build-gpu:
+  extends: .docker-job
+  stage: build
+  script:
+    - docker build -f docker/Dockerfile -t "$GPU_IMAGE:$VERSION" -t "$GPU_IMAGE:latest" .
+    - docker push "$GPU_IMAGE:$VERSION"
+    - docker push "$GPU_IMAGE:latest"
+
+build-cpu:
+  extends: .docker-job
+  stage: build
+  script:
+    - docker build -f docker/Dockerfile.cpu -t "$CPU_IMAGE:$VERSION" -t "$CPU_IMAGE:latest" .
+    - docker push "$CPU_IMAGE:$VERSION"
+    - docker push "$CPU_IMAGE:latest"
+
+# Behalte pro Image-Repository nur die aktuelle + die Vorgänger-Version (keep_n=2).
+# "latest" matcht die Versions-Regex nicht und bleibt unangetastet.
+#
+# Benötigt die CI/CD-Variable REGISTRY_CLEANUP_TOKEN (Project Access Token,
+# Rolle Maintainer, Scope "api", als masked Variable anlegen) — der normale
+# CI_JOB_TOKEN darf keine Registry-Tags löschen.
+#
+# GitLab drosselt die Bulk-Delete-API auf 1 Aufruf/Stunde/Repository, daher
+# allow_failure: bei schnell aufeinanderfolgenden main-Pushes schlägt nur das
+# Aufräumen fehl, nicht die Pipeline; der nächste Lauf holt es nach.
+cleanup-registry:
+  stage: cleanup
+  image: alpine:3.22
+  allow_failure: true
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      for repo_id in $(curl -sf --header "PRIVATE-TOKEN: $REGISTRY_CLEANUP_TOKEN" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories" | jq -r '.[].id'); do
+        echo "Bereinige Registry-Repository $repo_id (behalte 2 Versions-Tags + latest)"
+        curl -sf --request DELETE --header "PRIVATE-TOKEN: $REGISTRY_CLEANUP_TOKEN" \
+          --data-urlencode 'name_regex_delete=^[0-9]+\.[0-9]+\.[0-9]+$' \
+          --data-urlencode 'keep_n=2' \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories/$repo_id/tags"
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

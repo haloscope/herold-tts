@@ -165,6 +165,28 @@ Open http://localhost:8000/docs for Swagger UI (try endpoints in browser).
 
 ---
 
+## CI/CD (GitLab)
+
+Since v0.4.2 the images are built by the project's own GitLab runners (see
+`.gitlab-ci.yml` and `docs/adr/0003`): every push runs pytest; pushes to `main`
+additionally build both images and push them to the project's Container Registry as
+`<registry>/…/herold-tts/gpu:<version|latest>` and `…/cpu:<version|latest>`. The registry
+keeps only the current and previous version per image (`latest` always remains).
+
+Target machines should pull instead of building:
+
+```bash
+docker login <registry>          # once
+docker pull <registry-path>/gpu:latest
+docker pull <registry-path>/cpu:latest
+```
+
+One-time setup: enable the Container Registry in the project and create the CI/CD
+variable `REGISTRY_CLEANUP_TOKEN` (project access token, Maintainer role, scope `api`,
+masked). Local builds (sections above) remain the documented fallback.
+
+---
+
 ## System Requirements
 
 ### GPU (NVIDIA)
