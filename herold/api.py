@@ -9,12 +9,13 @@ REST API for batch TTS rendering:
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from pathlib import Path
 import os
 from datetime import datetime
+from . import __version__
 from .logger import setup_logger
 from .config import config
 from .render import render_batch, load_yaml, AnsageEntry
@@ -25,7 +26,7 @@ logger = setup_logger(__name__)
 app = FastAPI(
     title="Herold-TTS API",
     description="Text-to-Speech with voice cloning",
-    version="0.2.0",
+    version=__version__,
 )
 
 # ============================================================================
@@ -51,12 +52,18 @@ class StatusResponse(BaseModel):
     timestamp: str
     device: str
     service: str = "Herold-TTS API"
-    version: str = "0.2.0"
+    version: str = __version__
 
 
 # ============================================================================
 # Endpoints
 # ============================================================================
+
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirect to interactive API documentation."""
+    return RedirectResponse(url="/docs")
+
 
 @app.get("/api/status", response_model=StatusResponse)
 async def status():
@@ -161,8 +168,8 @@ async def docs_redirect():
 async def startup():
     """Initialize on startup."""
     logger.info(f"Herold-TTS API starting on device: {config.device}")
-    Path(config.renders_dir).mkdir(exist_ok=True)
-    Path(config.final_dir).mkdir(exist_ok=True)
+    Path(config.renders_dir).mkdir(parents=True, exist_ok=True)
+    Path(config.final_dir).mkdir(parents=True, exist_ok=True)
 
 
 @app.on_event("shutdown")
@@ -180,7 +187,7 @@ if __name__ == "__main__":
 
     logger.info("Starting Herold-TTS API server...")
     uvicorn.run(
-        "api:app",
+        "herold.api:app",
         host="0.0.0.0",
         port=8000,
         reload=False,

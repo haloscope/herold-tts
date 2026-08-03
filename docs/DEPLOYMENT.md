@@ -33,6 +33,28 @@ docker run -it \
   herold-tts:cpu
 ```
 
+### Volume Permissions (required before first run)
+
+The container runs as a non-root user (`oskar` in the GPU image, `herold` in the CPU image,
+both uid `999`). Docker auto-creates missing bind-mount source directories on the **host** as
+`root:root`, which the non-root container user cannot write to — `audition.py`/`render.py`/
+`convert.py` will fail with a generic `LibsndfileError: ... System error.` when saving WAV files.
+
+Before the first run, make sure the host-side data directories are owned by uid `999`:
+
+```bash
+mkdir -p data/audition data/renders data/final
+chown -R 999:999 data/
+```
+
+If you don't have host `chown` permissions, fix it from inside a running container instead
+(container root has host-root file permissions on the bind mount as long as no user-namespace
+remapping is configured):
+
+```bash
+docker compose exec --user root herold-tts-gpu chown -R oskar:oskar /app/data
+```
+
 ---
 
 ## REST API
@@ -139,22 +161,13 @@ docker run -e TTS_DEVICE=cpu herold-tts:cpu
 
 ## Performance Baseline
 
-**Hardware**: NVIDIA RTX 5090, CUDA 12.8
+**Superseded** — the numbers previously here (RTX 5090, "~18 sec" audition, "~90 sec per
+announcement pair") were estimates, not measurements, and didn't hold up against an actual
+end-to-end run (measured GPU throughput was faster: ~9-11 sec per synthesis, not ~90 sec).
 
-### Rendering (audition.py)
-- CustomVoice: ~2 sec/candidate × 2 candidates × 2 languages = ~8 sec
-- VoiceDesign: ~1 sec/design × 2 designs × 2 languages = ~4 sec
-- Design-then-Clone: ~6 sec
-- **Total**: ~18 sec
-
-### Batch Render (render.py)
-- 10 announcements (3 versions each = 30 WAV files): ~15 min
-- ~90 sec per announcement pair (EN + DE)
-
-### Conversion (convert.py, parallel)
-- 30 WAV → 60 output files (AAC + MP3): ~3 min (parallel, 4 workers)
-- Sequential: ~6 min
-- **Speedup**: ~2x with parallelization
+See **[docs/HARDWARE.md](HARDWARE.md)** for measured hardware requirements, disk space, tokens/sec,
+and render time expectations on both GPU and CPU, including the exact commands to reproduce the
+measurements yourself.
 
 ---
 

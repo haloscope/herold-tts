@@ -32,6 +32,19 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 COPY requirements.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
+# qwen-tts installed separately with --no-deps: its own dependency resolution
+# pulls an incompatible torchaudio, breaking the cu128 torch/torchaudio pair above.
+# Its remaining dependencies (everything except torchaudio) are installed explicitly.
+RUN pip install --no-cache-dir --no-deps qwen-tts && \
+    pip install --no-cache-dir \
+        "transformers==4.57.3" \
+        "accelerate==1.12.0" \
+        gradio \
+        librosa \
+        onnxruntime \
+        einops \
+        sox
+
 # ============================================================================
 # Stage 2: Runtime (minimal, only runtime deps)
 # ============================================================================
@@ -64,7 +77,9 @@ COPY requirements.txt /app/
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     CUDA_DEVICE_ORDER=PCI_BUS_ID \
-    NVIDIA_VISIBLE_DEVICES=all
+    NVIDIA_VISIBLE_DEVICES=all \
+    NUMBA_CACHE_DIR=/tmp/numba_cache \
+    HF_HOME=/app/.cache/huggingface
 
 # Health check: verify package is importable
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

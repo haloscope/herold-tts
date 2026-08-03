@@ -4,10 +4,13 @@ services:
   herold-tts-gpu:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
     image: herold-tts:latest
     container_name: herold-tts-gpu
-    
+    command: ["python", "-m", "herold.api"]
+    ports:
+      - "8000:8000"
+
     # GPU support
     runtime: nvidia
     environment:
@@ -42,7 +45,7 @@ services:
   # herold-tts-cpu:
   #   build:
   #     context: .
-  #     dockerfile: Dockerfile.cpu
+  #     dockerfile: docker/Dockerfile.cpu
   #   image: herold-tts:cpu
   #   container_name: herold-tts-cpu
   #   environment:
