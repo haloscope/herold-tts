@@ -13,7 +13,8 @@ Communication with the user is in German. Builds and end-to-end tests run on a s
 ```bash
 # Build & start (GPU host) — compose up starts the API on port 8000
 docker compose build
-docker compose up -d          # → http://localhost:8000/docs (Swagger UI)
+docker compose up -d          # → http://localhost:8000/ (Demo) · /docs (Swagger UI)
+docker compose --profile cpu up -d   # CPU-Variante → Port 8001
 
 # Blackwell/CUDA check after build
 docker compose exec herold-tts-gpu python -c \
@@ -43,7 +44,7 @@ Three separate stages that hand off files on disk (no in-process chaining), plus
 2. **`render.py`** — production batch step. Loads the reference audio once, builds a single `voice_clone_prompt`, then per entry in `resources/ansagen.yaml` (`id`, `text_de`, `text_en`) synthesizes **only two** clips (EN, DE) and derives `<id>_multiversion.wav` (EN + 2 s silence + DE) by concatenation — deliberately not a third synthesis (50% render-time saving). Preserve this when touching render logic. Output: `data/renders/<id>_{en,de,multiversion}.wav`, 24 kHz WAV master.
 3. **`convert.py`** — converts every WAV in `renders_dir` to `.m4a` (AAC 192k) and `.mp3` (VBR ~192k) in parallel (`ThreadPoolExecutor`, 2 ffmpeg subprocesses per file) with EBU R128 loudness normalization (`loudnorm=I=-23:TP=-1.5:LRA=11`). Requires `ffmpeg` on PATH.
 
-**`api.py`** — FastAPI wrapper around `render_batch`/`batch_convert`: validates synchronously, hands work to `BackgroundTasks`, returns 202. No job-status endpoint — progress is only observable via logs.
+**`api.py`** — FastAPI wrapper around `render_batch`/`batch_convert`: validates synchronously, hands work to `BackgroundTasks`, returns 202 with a `job_id`. An in-memory job registry (`jobs` dict + lock; lost on restart, single-instance by design — ADR 0002) backs `GET /api/jobs/{id}`; `GET /api/files` + `GET /api/files/{dir}/{name}` list/serve results (path-safe via `convert.validate_filename_stem`). `/demo` (and `/` via redirect) serves `herold/static/index.html`, a self-contained example web frontend that uses only the public API.
 
 **`config.py`** — single source of truth: module-level `config` singleton (`TTSConfig` dataclass) for paths, device, dtype, audio and codec parameters. Add new tunables here, don't hardcode them in scripts. `get_device()` honors the `TTS_DEVICE` env var first (compose sets `cuda:0`; the CPU image sets `cpu`), then CUDA-if-available.
 
@@ -62,7 +63,7 @@ Both Dockerfiles are multi-stage (builder venv → slim runtime) and drop to a n
 - `docker/Dockerfile` — GPU, `nvidia/cuda:12.8.1-runtime-ubuntu24.04`. CUDA 12.8+ is a hard requirement for Blackwell (sm_120); older bases fail with "no kernel image available". Don't downgrade without re-checking.
 - `docker/Dockerfile.cpu` — `ubuntu:24.04`, `TTS_DEVICE=cpu`, thread caps via `OMP_NUM_THREADS`/`MKL_NUM_THREADS` (`TORCH_NUM_THREADS` is a no-op — that was bug v0.3.3).
 
-`docker-compose.yml` wires up only the GPU service (`herold-tts-gpu`); the CPU service is commented out.
+`docker-compose.yml` starts the GPU service (`herold-tts-gpu`, port 8000) by default; the CPU service (`herold-tts-cpu`, port 8001) is behind the compose profile `cpu`.
 
 ## Gotchas
 

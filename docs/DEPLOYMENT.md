@@ -7,31 +7,35 @@ Production-ready deployment of Herold-TTS with Docker, GPU/CPU support, and REST
 ### Docker (GPU)
 
 ```bash
-# Build image
-docker build -t herold-tts:latest .
+docker compose build
+docker compose up -d
+# API + demo web frontend on http://localhost:8000/
+```
 
-# Run with GPU
-docker run --gpus all -it \
-  -v $(pwd)/audition:/app/audition \
-  -v $(pwd)/renders:/app/renders \
-  -v $(pwd)/final:/app/final \
-  herold-tts:latest
+Manual build without compose:
 
-# Or use docker-compose
-docker-compose up herold-tts-gpu
+```bash
+docker build -f docker/Dockerfile -t herold-tts:latest .
+docker run --gpus all -p 8000:8000 \
+  -v $(pwd)/data/audition:/app/data/audition \
+  -v $(pwd)/data/renders:/app/data/renders \
+  -v $(pwd)/data/final:/app/data/final \
+  -v $(pwd)/data/hf-cache:/app/.cache/huggingface \
+  herold-tts:latest python -m herold.api
 ```
 
 ### Docker (CPU-only)
 
+The CPU variant is wired up as a compose profile (not started by default):
+
 ```bash
-docker build -f Dockerfile.cpu -t herold-tts:cpu .
-docker run -it \
-  -e TTS_DEVICE=cpu \
-  -v $(pwd)/audition:/app/audition \
-  -v $(pwd)/renders:/app/renders \
-  -v $(pwd)/final:/app/final \
-  herold-tts:cpu
+docker compose --profile cpu build
+docker compose --profile cpu up -d
+# API + demo web frontend on http://localhost:8001/
 ```
+
+Manual build without compose: as above, but with `-f docker/Dockerfile.cpu`,
+image tag `herold-tts:cpu`, `-e TTS_DEVICE=cpu` and without `--gpus`.
 
 ### Volume Permissions (required before first run)
 
@@ -59,12 +63,11 @@ docker compose exec --user root herold-tts-gpu chown -R oskar:oskar /app/data
 
 ## REST API
 
-Start the API server:
+Start the API server (inside the container this is the default `command`):
 
 ```bash
-cd work
-python api.py
-# or: uvicorn api:app --host 0.0.0.0 --port 8000
+python -m herold.api
+# or: uvicorn herold.api:app --host 0.0.0.0 --port 8000
 ```
 
 ### Endpoints
@@ -78,10 +81,10 @@ Response:
 ```json
 {
   "status": "healthy",
-  "timestamp": "2026-07-06T12:34:56.789012",
+  "timestamp": "2026-08-03T12:34:56.789012",
   "device": "cuda:0",
   "service": "Herold-TTS API",
-  "version": "0.2.0"
+  "version": "0.4.0"
 }
 ```
 
@@ -105,10 +108,31 @@ Response (202 Accepted):
 {
   "status": "accepted",
   "message": "Rendering started",
+  "job_id": "3f2a9c1d40be",
   "count": 1,
-  "output_dir": "renders"
+  "output_dir": "/app/data/renders"
 }
 ```
+
+#### Poll Job Status
+```bash
+curl http://localhost:8000/api/jobs/3f2a9c1d40be
+```
+
+Response (`status` is one of `queued | running | done | failed`):
+```json
+{
+  "job_id": "3f2a9c1d40be",
+  "kind": "render",
+  "status": "done",
+  "created_at": "2026-08-03T12:35:01.123456",
+  "items": ["welcome"],
+  "error": null
+}
+```
+
+The registry is in-memory: job state is lost on restart and not shared between
+instances (see `docs/adr/0002`).
 
 #### Convert WAV to AAC/MP3 (Async)
 ```bash
@@ -116,6 +140,24 @@ curl -X POST http://localhost:8000/api/convert \
   -H "Content-Type: application/json" \
   -d '{"filter_pattern": "*.wav"}'
 ```
+
+Also returns a `job_id` (poll as above).
+
+#### List & Download Result Files
+```bash
+curl http://localhost:8000/api/files
+curl -O http://localhost:8000/api/files/renders/welcome_en.wav
+curl -O http://localhost:8000/api/files/final/welcome_en.mp3
+```
+
+`renders/` serves `.wav`, `final/` serves `.m4a`/`.mp3`; filenames are validated
+against path traversal.
+
+### Demo Web Frontend
+
+`http://localhost:8000/` (redirects to `/demo/`) serves a self-contained example
+web page that exercises exactly this API: render form → job polling → audio
+players → convert → downloads. Intended as an integration blueprint.
 
 ### Interactive Docs
 

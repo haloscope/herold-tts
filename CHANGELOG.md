@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.4.0
+
+**Release Date:** 2026-08-03
+
+### ✨ Features
+
+- **Job-Status-API:** `POST /api/render` und `POST /api/convert` geben jetzt eine `job_id`
+  zurück; `GET /api/jobs/{job_id}` liefert `queued | running | done | failed` inkl. Fehlertext.
+  In-Memory-Registry, Single-Instance by design (siehe `docs/adr/0002`)
+- **Datei-Endpoints:** `GET /api/files` (Listing von `data/renders/` und `data/final/`) und
+  `GET /api/files/{dir}/{name}` (Download/Streaming, Path-Traversal-sicher über das vorhandene
+  `validate_filename_stem` plus Verzeichnis-/Extension-Whitelist)
+- **Exemplarischer Demo-Webservice:** selbst-enthaltene HTML/JS-Seite unter `/demo`
+  (Root `/` leitet dorthin um): Ansage eingeben → rendern → Job-Polling → Audio-Player →
+  AAC/MP3-Konvertierung → Downloads. Nutzt ausschließlich die öffentliche REST-API
+  (Integrations-Blaupause)
+- **CPU-Variante als Compose-Profil:** `docker compose --profile cpu up -d` startet
+  `herold-tts-cpu` (Port 8001) mit denselben Mounts wie der GPU-Service; Standardverhalten
+  unverändert
+
+### ✅ Verified
+
+- 41 Tests grün (28 bestehende + 13 neue API-Tests: Path-Traversal, Job-Lebenszyklus mit
+  gemocktem Modell, Datei-Listing/-Download, Demo-Auslieferung); `httpx` für den FastAPI
+  `TestClient` zu `requirements.txt` hinzugefügt
+- `docker compose config` für beide Profile validiert; End-to-End-Lauf (GPU + CPU) auf der
+  Testmaschine steht aus
+
+### 📝 Docs
+
+- DEPLOYMENT.md: veraltete Build-/Startbeispiele korrigiert (`docker/Dockerfile`-Pfade,
+  `python -m herold.api` statt `cd work`), neue Endpoints und Demo dokumentiert
+- ADR 0002 (integrierte Demo + In-Memory-Jobs), README-Schnellstart, CLAUDE.md aktualisiert
+
+---
+
 ## v0.3.5
 
 **Release Date:** 2026-08-03

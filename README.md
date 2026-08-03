@@ -7,16 +7,20 @@ Aktuell ist der Stack darauf ausgelegt eine NVIDIA Blackwell GPU für das Render
 
 ---
 
-## Schnellstart — REST API
+## Schnellstart — REST API & Demo-Webservice
 
 Starte den Service einfach mit Docker:
 
 ```bash
-docker-compose up herold-tts-gpu
-# oder: python -m herold.api
+docker compose up -d          # GPU-Variante, Port 8000
+# oder ohne GPU:
+docker compose --profile cpu up -d   # CPU-Variante, Port 8001
 ```
 
-Öffne http://localhost:8000/docs für interaktive API-Dokumentation (Swagger UI).
+Öffne **http://localhost:8000/** — die Startseite ist ein exemplarischer
+Demo-Webservice (Ansage eingeben → rendern → anhören → als AAC/MP3 laden), der
+ausschließlich die öffentliche REST-API nutzt und so als Integrations-Blaupause
+dient. Swagger UI: http://localhost:8000/docs
 
 **Beispiel: Ansagen rendern**
 ```bash
