@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.4.1
+
+**Release Date:** 2026-08-03
+
+### 🐛 Bug Fixes
+
+- **CPU-Image um ~4 GB CUDA-Ballast erleichtert:** `docker/Dockerfile.cpu` installiert
+  torch/torchaudio jetzt explizit aus dem CPU-Wheel-Index (`download.pytorch.org/whl/cpu`),
+  bevor `requirements.txt` aufgelöst wird. Die Standard-PyPI-Wheels bündeln die komplette
+  CUDA-Runtime (gemessen beim arm64-Testbuild: 9,8 GB Image, ~70 min Build) — im CPU-Image
+  totes Gewicht
+- **Healthcheck beider Images repariert:** statt alle 30 s den kompletten torch/qwen-tts-Stack
+  zu importieren (CPU-intensiv, riss auf langsameren Hosts das 10-s-Timeout → Container
+  dauerhaft fälschlich `unhealthy`, beobachtet beim Mac-Smoke-Test) jetzt eine leichte
+  HTTP-Probe gegen `/api/status`; `start-period=180s` deckt den langsamen Erstimport der API.
+  Hinweis: Container, die ohne API laufen (z. B. `docker run … bash`), melden nun `unhealthy` —
+  kosmetisch
+
+### ✅ Verified (Teiltest, Apple-Silicon-Mac)
+
+- CPU-Image (noch vor dem CUDA-Fix) baute nativ für linux/arm64 — alle Abhängigkeiten haben
+  aarch64-Wheels; Smoke-Check gegen den laufenden Container grün: `/api/status`
+  (`device=cpu`, v0.4.0), `/` → `/demo/`, Demo-Seite, `/api/files`, 404-/400-Absicherung
+- Voller End-to-End-Lauf (Render + Konvertierung + HF-Cache-Persistenz) sowie Build der
+  gefixten Images stehen weiter für die Testmaschine aus; der Mac-Test wurde wegen
+  Systemlast abgebrochen und vollständig zurückgebaut
+
+---
+
 ## v0.4.0
 
 **Release Date:** 2026-08-03

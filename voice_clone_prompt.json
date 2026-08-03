@@ -1,0 +1,6 @@
+{
+  "source": "/Users/thore/herold/herold-tts/data/audition/reference_design_de.wav",
+  "ref_text": "Hallo, ich freue mich Sie auf Oskar begr\u00fc\u00dfen zu d\u00fcrfen! Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins",
+  "created_at": "/Users/thore/herold/herold-tts",
+  "note": "Der eigentliche prompt_obj muss in-memory im Modell gehalten werden; diese JSON ist nur Metadaten."
+}
