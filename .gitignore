@@ -2,6 +2,8 @@
 /data/renders/
 /data/final/
 /data/audition/*.wav
+# Ausnahme: Signature-Stimme (Referenz für VoiceClone, muss erhalten bleiben)
+!/data/audition/reference_design_de.wav
 
 # Python
 __pycache__/
