@@ -64,7 +64,7 @@ docker compose up -d
 
 **Blackwell-Check direkt nach dem Build** (Pflicht):
 ```bash
-docker compose exec qwen3-tts python -c \
+docker compose exec herold-tts-gpu python -c \
   "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))"
 # erwartet z.B.: 2.x.x+cu128 ... 12.8 ... NVIDIA GeForce XYZ
 ```
@@ -75,7 +75,7 @@ docker compose exec qwen3-tts python -c \
 
 **Batch-Skript** (reproduzierbar, empfohlen)
 ```bash
-docker compose exec qwen3-tts python -m herold.audition
+docker compose exec herold-tts-gpu python -m herold.audition
 # Ergebnis: ./audition/*.wav  (auf dem Host)
 ```
 
@@ -100,7 +100,7 @@ ansagen:
 
 ### Schritt 4: Batch-Render (3 Versionen pro Ansage, aber nur 2 Synthesen!)
 ```bash
-docker compose exec qwen3-tts python -m herold.render
+docker compose exec herold-tts-gpu python -m herold.render
 ```
 
 Rendert für **jede Ansage automatisch 3 Versionen**:
@@ -114,7 +114,7 @@ Rendert für **jede Ansage automatisch 3 Versionen**:
 
 ### Schritt 5: Konvertierung zu AAC + MP3
 ```bash
-docker compose exec qwen3-tts python -m herold.convert
+docker compose exec herold-tts-gpu python -m herold.convert
 ```
 
 - Konvertiert **alle** WAV-Dateien (EN, DE, Multiversion)
@@ -145,11 +145,11 @@ Zugriff im Windows-Explorer:
 
 3. Blackwell-Check (oben)
 
-4. **Audition** (optional): `docker compose exec qwen3-tts python -m herold.audition`
+4. **Audition** (optional): `docker compose exec herold-tts-gpu python -m herold.audition`
 
-5. **Render**: `docker compose exec qwen3-tts python -m herold.render` → `data/renders/*.wav`
+5. **Render**: `docker compose exec herold-tts-gpu python -m herold.render` → `data/renders/*.wav`
 
-6. **Convert**: `docker compose exec qwen3-tts python -m herold.convert` → `data/final/*.m4a` + `data/final/*.mp3`
+6. **Convert**: `docker compose exec herold-tts-gpu python -m herold.convert` → `data/final/*.m4a` + `data/final/*.mp3`
 
 ---
 

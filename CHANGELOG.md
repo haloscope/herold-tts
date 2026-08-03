@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.3.4
+
+**Release Date:** 2026-08-03
+
+### 🔧 Maintenance
+
+- **v0.3.3 cleanly adopted onto `main`:** the tested state from the `patch-03520` transfer branch
+  was taken over file-by-file instead of merged, keeping `.gitignore`/`.dockerignore` intact and
+  excluding runtime artifacts (`data/renders`, `data/final`, `tests/__pycache__`) and the 13 MB
+  transfer zip from `main`'s history. The previous `main` (v0.3.0) is preserved as branch
+  `backup/main-v0.3.0`.
+- **Signature voice preserved in repo:** `data/audition/reference_design_de.wav` — the VoiceClone
+  reference every render depends on — is now committed with an explicit `.gitignore` exception.
+  Previously it existed only on the test machine and in the transfer branch; without it no render
+  is reproducible.
+- **README:** stale `docker compose exec qwen3-tts …` commands updated to the actual Compose
+  service name `herold-tts-gpu` (7 occurrences)
+- **`CLAUDE.md` added:** merged from the two independent drafts (main working guidelines +
+  patch-03520 architecture notes), with updated commands matching the v0.3.3 Compose setup
+
+---
+
 ## v0.3.3
 
 **Release Date:** 2026-07-07
