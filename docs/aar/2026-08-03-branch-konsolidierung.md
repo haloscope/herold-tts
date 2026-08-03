@@ -13,8 +13,11 @@ zusammenführen. Nebenziele: CLAUDE.md für Claude Code etablieren, Signature-St
   v0.3.3-Übernahme (`d6fcede`), Signature-Stimme mit gitignore-Ausnahme (`cbee4ce`),
   v0.3.4-Doku inkl. gemergter CLAUDE.md und README-Servicenamen-Fixes (`b07d313`),
   `tests/__pycache__` enttrackt (`a31a9af`)
-- Push + Löschung von `patch-03520` zunächst an DNS gescheitert (`git.lab` nicht auflösbar);
-  Hinweis: das GitLab ist nur über Port 443 (HTTPS) und 53 (DNS) erreichbar
+- Push + Löschung von `patch-03520` zunächst an DNS gescheitert: mDNSResponder hatte einen
+  Negativ-Cache für `git.lab` aus der Zeit vor der VPN-Verbindung (direkte DNS-Abfrage und
+  Port 443 funktionierten, nur der System-Resolver nicht). Behoben durch
+  `sudo killall -HUP mDNSResponder`. Hinweis: das GitLab ist nur über Port 443 (HTTPS) und
+  53 (DNS) erreichbar — Remote auf HTTPS belassen, kein SSH
 
 ## Gelernt
 
@@ -29,7 +32,7 @@ zusammenführen. Nebenziele: CLAUDE.md für Claude Code etablieren, Signature-St
 
 ## Offene Punkte
 
-- [ ] `git push origin main backup/main-v0.3.0` (scheiterte an DNS; Netz/VPN nötig)
-- [ ] `git push origin --delete patch-03520` (erst nach erfolgreichem Push von `main`)
+- [x] `git push origin main backup/main-v0.3.0` — erledigt 2026-08-03 nach mDNSResponder-Reset
+- [x] `git push origin --delete patch-03520` — erledigt 2026-08-03
 - [ ] Optional: HF-Cache-Volume in `docker-compose.yml` (siehe docs/HARDWARE.md), um
       3.8–11 GB Re-Downloads nach Image-Rebuilds zu vermeiden
