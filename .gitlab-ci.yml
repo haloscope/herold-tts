@@ -41,7 +41,7 @@ test:
 .docker-job:
   image: docker:27-cli
   before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - VERSION=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' herold/__init__.py | head -1)
     - echo "Baue Version $VERSION"
   rules:
