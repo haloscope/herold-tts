@@ -134,3 +134,18 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+### 5. Document Decisions (ADR) and Work (AAR)
+
+Development work must be documented continuously, in German, in two forms:
+
+- **ADR** (Architecture Decision Record) — `docs/adr/NNNN-<slug>.md`, sequentially numbered.
+  Write one whenever a decision shapes architecture, tooling, or process (engine choice, branch
+  strategy, format decisions, …). Sections: Status / Kontext / Entscheidung / Konsequenzen.
+  Never rewrite an accepted ADR — supersede it with a new one and link both.
+- **AAR** (After Action Review) — `docs/aar/YYYY-MM-DD-<slug>.md`. Write one after significant
+  work sessions, releases, or incidents. Sections: Ziel / Was geschah / Gelernt / Offene Punkte.
+
+CHANGELOG.md records *what* changed per version; ADRs record *why* decisions were made; AARs
+record *how* the work went. Keep all three current — undocumented decisions are the failure mode
+this exists to prevent (e.g. the v0.1.0 production runs on the test machine were never recorded).
