@@ -173,12 +173,18 @@ additionally build both images and push them to the project's Container Registry
 `<registry>/…/herold-tts/gpu:<version|latest>` and `…/cpu:<version|latest>`. The registry
 keeps only the current and previous version per image (`latest` always remains).
 
-Target machines should pull instead of building:
+Target machines should pull instead of building. Note the `docker tag` step:
+`docker-compose.yml` references the local image names `herold-tts:latest` /
+`herold-tts:cpu`, so the pulled registry images must be tagged accordingly —
+otherwise `docker compose up` triggers a local build despite the pull:
 
 ```bash
-docker login <registry>          # once
-docker pull <registry-path>/gpu:latest
-docker pull <registry-path>/cpu:latest
+docker login registry.git.lab    # once; PAT with read_registry as password
+docker pull registry.git.lab/dataport/herold-tts/gpu:latest
+docker tag  registry.git.lab/dataport/herold-tts/gpu:latest herold-tts:latest
+# CPU variant (compose profile "cpu", port 8001):
+docker pull registry.git.lab/dataport/herold-tts/cpu:latest
+docker tag  registry.git.lab/dataport/herold-tts/cpu:latest herold-tts:cpu
 ```
 
 One-time setup: enable the Container Registry in the project and create the CI/CD
