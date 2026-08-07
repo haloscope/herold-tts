@@ -15,6 +15,14 @@ stages:
   - build
   - cleanup
 
+# GitLab-Security-Scans (seit v0.4.3 wieder aktiv; die alte CI hatte sie bis zum
+# Restrukturierungs-Commit 2026-07-06). Die Template-Jobs (semgrep-sast,
+# secret_detection) laufen in der test-Stage jeder Pipeline; Findings liegen als
+# Job-Artefakte (gl-sast-report.json / gl-secret-detection-report.json) vor.
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
 variables:
   GPU_IMAGE: $CI_REGISTRY_IMAGE/gpu
   CPU_IMAGE: $CI_REGISTRY_IMAGE/cpu

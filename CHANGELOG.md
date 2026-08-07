@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.4.3
+
+**Release Date:** 2026-08-07
+
+### 🔒 Security
+
+- **SAST + Secret Detection reaktiviert:** Die GitLab-Security-Templates
+  (`Security/SAST.gitlab-ci.yml`, `Security/Secret-Detection.gitlab-ci.yml`) laufen wieder
+  in der test-Stage jeder Pipeline. Sie waren Teil der ursprünglichen CI (2026-06-25),
+  wurden aber beim Restrukturierungs-Commit am 2026-07-06 mitsamt der alten
+  `.gitlab-ci.yml` entfernt und fehlten seither. Die automatische Changelog-Generierung
+  der alten CI wird bewusst **nicht** reaktiviert — das CHANGELOG wird seit v0.3.x manuell
+  und kuratiert gepflegt (ADR/AAR-Prozess)
+
+### 🔧 Maintenance
+
+- Commit-Konventionen eingeführt und Historie entsprechend umgeschrieben (ADR 0004):
+  Messages einheitlich englisch-sachlich, Zeitstempel aller Commits auf 12:00 UTC
+  anonymisiert
+
+---
+
 ## v0.4.2
 
 **Release Date:** 2026-08-03
