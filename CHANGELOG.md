@@ -13,6 +13,12 @@
   `.gitlab-ci.yml` entfernt und fehlten seither. Die automatische Changelog-Generierung
   der alten CI wird bewusst **nicht** reaktiviert — das CHANGELOG wird seit v0.3.x manuell
   und kuratiert gepflegt (ADR/AAR-Prozess)
+- **Container-CVE-Scan (Trivy):** neuer `container-scan`-Job (Stage `scan`, nur auf `main`)
+  prüft die frisch gebauten gpu/cpu-Images auf HIGH/CRITICAL-CVEs — report-only
+  (`allow_failure`), JSON-Reports als Artefakte. GitLabs offizielles
+  Container-Scanning-Template ist Ultimate-only und daher ungeeignet
+- **JUnit-Testreport:** `test`-Job lädt `pytest-report.xml` als JUnit-Report hoch —
+  Testergebnisse erscheinen direkt in der GitLab-Pipeline-Ansicht
 
 ### 🔧 Maintenance
 

@@ -13,6 +13,7 @@
 stages:
   - test
   - build
+  - scan
   - cleanup
 
 # GitLab-Security-Scans (seit v0.4.3 wieder aktiv; die alte CI hatte sie bis zum
@@ -41,7 +42,12 @@ test:
     - pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch torchaudio
     - pip install --quiet -r requirements.txt
   script:
-    - pytest -q
+    - pytest -q --junitxml=pytest-report.xml
+  artifacts:
+    when: always          # Report auch bei roten Tests hochladen — gerade dann!
+    reports:
+      junit: pytest-report.xml
+    expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
 
@@ -70,6 +76,39 @@ build-cpu:
     - docker build -f docker/Dockerfile.cpu -t "$CPU_IMAGE:$VERSION" -t "$CPU_IMAGE:latest" .
     - docker push "$CPU_IMAGE:$VERSION"
     - docker push "$CPU_IMAGE:latest"
+
+# Container-CVE-Scan der frisch gebauten Images (report-only, blockt nie — erst
+# Baseline ansehen, dann ggf. auf --exit-code 1 verschärfen). GitLabs offizielles
+# Container-Scanning-Template ist Ultimate-only, daher Trivy direkt. Findings:
+# Tabellen im Job-Log, JSON-Reports als Artefakte (30 Tage).
+container-scan:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  variables:
+    TRIVY_USERNAME: $CI_REGISTRY_USER
+    TRIVY_PASSWORD: $CI_JOB_TOKEN
+    TRIVY_CACHE_DIR: .trivycache
+  cache:
+    key: trivy-db
+    paths:
+      - .trivycache
+  allow_failure: true
+  before_script:
+    - VERSION=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' herold/__init__.py | head -1)
+  script:
+    - trivy image --severity HIGH,CRITICAL "$GPU_IMAGE:$VERSION"
+    - trivy image --severity HIGH,CRITICAL --format json -o trivy-gpu.json "$GPU_IMAGE:$VERSION"
+    - trivy image --severity HIGH,CRITICAL "$CPU_IMAGE:$VERSION"
+    - trivy image --severity HIGH,CRITICAL --format json -o trivy-cpu.json "$CPU_IMAGE:$VERSION"
+  artifacts:
+    paths:
+      - trivy-gpu.json
+      - trivy-cpu.json
+    expire_in: 30 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # Behalte pro Image-Repository nur die aktuelle + die Vorgänger-Version (keep_n=2).
 # "latest" matcht die Versions-Regex nicht und bleibt unangetastet.
