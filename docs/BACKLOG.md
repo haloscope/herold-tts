@@ -18,6 +18,11 @@ Hintergründe). Erledigtes bitte streichen und im CHANGELOG bzw. AAR dokumentier
 - [ ] **`cleanup-registry`-Job beobachten:** schlägt bei >1 Lauf/Stunde am GitLab-Rate-Limit
       fehl (gewollt, `allow_failure`) — prüfen, dass er bei ruhigem Pipeline-Takt wirklich
       löscht und nur aktuelle + Vorgänger-Version behält
+- [ ] **ruff als Code-Quality-Job** (Schritt ③ vom 2026-08-07): ruff-Lint-Job mit
+      `--output-format=gitlab` + `artifacts:reports:codequality`; vorher einmalige
+      Bereinigung der initialen Findings und ruff-Konfiguration (Repo hat bisher kein Lint-Setup)
+- [ ] **Trivy-Baseline sichten:** ersten `container-scan`-Report auswerten; danach entscheiden,
+      ob der Job von report-only auf blockierend (`--exit-code 1`) verschärft wird
 - [ ] **`on_event` → Lifespan-Handler** in `herold/api.py` (FastAPI-Deprecation-Warnungen
       in der Testsuite)
 - [ ] **Render-Job-Status ehrlicher machen:** `render_batch` schluckt Einzelfehler
