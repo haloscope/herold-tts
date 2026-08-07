@@ -74,6 +74,18 @@ Both Dockerfiles are multi-stage (builder venv → slim runtime) and drop to a n
 - Measured performance/disk numbers live in docs/HARDWARE.md; old README/DEPLOYMENT estimates were superseded.
 - Branch `backup/main-v0.3.0` preserves the pre-v0.3.3 main; `origin/patch-03520` was the test-env transfer branch (contains runtime artifacts and a 13 MB zip in history — don't merge it).
 
+## Commit Conventions
+
+- Messages in **English**, conventional-commit style (`feat:`, `fix:`, `docs:`, `chore:`).
+- **Timestamp anonymization (ADR 0004):** every commit must be created with author and
+  committer date set to **12:00:00 UTC of the current date**, so no personal working-hour
+  patterns are derivable from the history:
+  ```bash
+  export GIT_AUTHOR_DATE="$(date -u +%Y-%m-%d)T12:00:00Z" GIT_COMMITTER_DATE="$(date -u +%Y-%m-%d)T12:00:00Z"
+  git commit -m "..."
+  ```
+  The full history was rewritten to this scheme on 2026-08-07.
+
 ## Working Guidelines
 
 Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
