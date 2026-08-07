@@ -264,6 +264,26 @@ sudo systemctl restart docker
 - Use CPU-only variant
 - Increase VRAM or use smaller model
 
+### `[Errno 5] Input/output error` when loading the Qwen3-TTS model
+
+OS-level I/O error during model download/load (render job fails, traceback in
+`docker logs herold-tts-gpu`). The line *above* the errno tells you which case:
+`download`/`hf_hub`/`xet` → error while downloading; `safetensors`/`mmap` →
+error while reading already-cached files. Check in this order:
+
+1. **Disk full (most common):** `df -h ~` and `docker system df`. Old images +
+   new image + 3.8 GB model add up fast. Clean up: `docker rmi herold-tts:cpu`
+   (unused on the GPU box), `docker image prune` (dangling images after retag).
+2. **Corrupted/partial model download in the cache:** stale half-downloaded
+   files in `data/hf-cache/` cause I/O errors on reuse. Fix (costs one
+   re-download of ~3.8 GB):
+   ```bash
+   docker compose down && sudo rm -rf data/hf-cache/* && docker compose up -d
+   ```
+3. **Actual disk/filesystem fault:** `sudo dmesg --ctime | tail -25` — NVMe or
+   EXT4 errors there mean a hardware problem; stop writing and investigate the
+   disk before continuing.
+
 ### ffmpeg Not Found
 ```
 RuntimeError: ffmpeg not found! Install with: apt-get install ffmpeg
