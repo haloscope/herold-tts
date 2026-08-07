@@ -4,7 +4,7 @@ Measured numbers from an actual end-to-end run of the pipeline (audition → ren
 not vendor estimates. Test rig used for all measurements below:
 
 - **GPU host:** NVIDIA GeForce RTX 5090 (32 GB VRAM), CUDA 12.8, torch 2.12.1+cu130
-- **CPU host:** Intel Core Ultra 9 285K (24 threads), 32 GB RAM
+- **CPU host:** Intel Core Ultra 9 285K (24 threads), 64 GB RAM
 - Model: `Qwen/Qwen3-TTS-12Hz-1.7B-*` (Base/CustomVoice/VoiceDesign), `dtype=bfloat16` (fixed in
   `herold/config.py`, same on GPU and CPU)
 
