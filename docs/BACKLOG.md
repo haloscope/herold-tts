@@ -5,10 +5,10 @@ Hintergründe). Erledigtes bitte streichen und im CHANGELOG bzw. AAR dokumentier
 
 ## Offen
 
-- [ ] **GPU-E2E-Test auf Hive abschließen:** Render über die Demo-Seite (`http://hive:8000/`)
-      mit v0.4.2 — zuletzt gescheitert mit `[Errno 5]` beim Modell-Load (Troubleshooting-Leitfaden:
-      docs/DEPLOYMENT.md → „Errno 5"). Ursache auf Hive noch unklar (Platte/Cache/Hardware).
-      Danach: Konvertierung, `healthy`-Check, HF-Cache-Persistenz (Rebuild ohne Re-Download)
+- [ ] **GPU-/CPU-E2E-Test auf Hive abschließen:** vollständiges Abnahmeprotokoll mit
+      Checkboxen und Messfeldern liegt unter **docs/abnahme/v0.4.3.md** — abarbeiten und
+      Ergebnis zurückmelden. (Historie: v0.4.2-Versuch scheiterte mit `[Errno 5]` beim
+      Modell-Load; Leitfaden in docs/DEPLOYMENT.md → Troubleshooting)
 - [ ] **HARDWARE.md aktualisieren:** Image-Größen sind veraltet — CPU-Image ist seit v0.4.1
       ohne CUDA-Ballast deutlich kleiner (dokumentiert: 9,8 GB). Neue Messwerte von Hive
       (`docker images`) eintragen; auch VRAM/Renderzeiten mit v0.4.2 gegenprüfen
