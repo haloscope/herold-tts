@@ -127,9 +127,10 @@ docker compose exec herold-tts-gpu python -m herold.convert
 
 **Output:** `./data/final/<id>_{en,de,multiversion}.{m4a,mp3}`
 
-Zugriff im Windows-Explorer:
+Zugriff: auf dem Host unter `./data/final/`, oder bequem über die Demo-Seite
+(`http://<host>:8000/` → Abschnitt „Dateien" mit Playern und Download-Links):
 ```
-\\wsl$\Debian\home\sorb\herold-tts\data\final\
+data/final/
   ├── welcome_en.m4a / .mp3
   ├── welcome_de.m4a / .mp3
   ├── welcome_multiversion.m4a / .mp3

@@ -23,6 +23,9 @@ Hintergründe). Erledigtes bitte streichen und im CHANGELOG bzw. AAR dokumentier
       Bereinigung der initialen Findings und ruff-Konfiguration (Repo hat bisher kein Lint-Setup)
 - [ ] **Trivy-Baseline sichten:** ersten `container-scan`-Report auswerten; danach entscheiden,
       ob der Job von report-only auf blockierend (`--exit-code 1`) verschärft wird
+- [ ] **SBOM aktualisieren:** SBOM.md/SBOM.csv sind Stand Juni — u. a. fehlt `httpx`
+      (Test-Dependency seit v0.4.0), Versionsstände (torch etc.) sind gedriftet; einmal
+      gegen requirements.txt + Dockerfile-Installationen abgleichen
 - [ ] **`on_event` → Lifespan-Handler** in `herold/api.py` (FastAPI-Deprecation-Warnungen
       in der Testsuite)
 - [ ] **Render-Job-Status ehrlicher machen:** `render_batch` schluckt Einzelfehler
