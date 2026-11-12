@@ -4,7 +4,7 @@
 /data/audition/*.wav
 /data/hf-cache/
 /voice_clone_prompt.json
-# Ausnahme: Signature-Stimme (Referenz für VoiceClone, muss erhalten bleiben)
+# Exception: signature voice (VoiceClone reference, must be retained)
 !/data/audition/reference_design_de.wav
 
 # Python

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-render.py - Batch-Rendering mit geclonter Stimme.
+render.py - Batch rendering with a cloned voice.
 
 Pipeline:
-1. Lade reference_design_de.wav (die Stimmen-Referenz)
-2. Erzeuge voice_clone_prompt (und speichere ihn für Reproduzierbarkeit)
-3. Lese ansagen.yaml (id, sprache, text)
-4. Rendere jede Ansage mit der geclonten Stimme:
-   - Englisch allein
-   - Deutsch allein
-   - Kombiniert: EN + 2s Pause + DE (kein extra Rendering)
-   -> renders/*.wav (24 kHz, 3 Versionen pro Ansage)
+1. Load reference_design_de.wav (the voice reference)
+2. Create voice_clone_prompt and record reproducibility metadata
+3. Read ansagen.yaml (ID, language-specific text)
+4. Render each announcement with the cloned voice:
+   - English only
+   - German only
+   - Combined: EN + 2-second pause + DE (no third synthesis)
+   -> renders/*.wav (24 kHz, three variants per announcement)
 
 Output: ./renders/<id>_en.wav, <id>_de.wav, <id>_multiversion.wav
-Nächster Schritt: convert.py (WAV -> AAC + MP3)
+Next step: convert.py (WAV -> AAC + MP3)
 """
 
 import os
@@ -30,27 +30,27 @@ from .config import config
 
 logger = setup_logger(__name__)
 
-# --- Konfiguration -----------------------------------------------------------
+# --- Configuration -----------------------------------------------------------
 
 ATTN = config.attn_implementation
 DTYPE = config.dtype
 DEVICE = config.device
 
-# Pfade
+# Paths
 AUDITION_DIR = config.audition_dir
 RENDERS_DIR = config.renders_dir
 ANSAGEN_FILE = config.ansagen_file
 CLONE_PROMPT_FILE = config.clone_prompt_file
 
-# Referenz-Datei
+# Reference audio file
 REF_AUDIO_FILE = config.ref_audio_file
 REF_TEXT_DE = config.ref_text_de
 
-# Multiversion-Parameter
+# Combined-version parameters
 PAUSE_DURATION_SECONDS = config.pause_duration
 MAX_TEXT_LENGTH = 5000  # Max characters per text (security: DoS protection)
 
-# --- Datenklassen & Validierung -----------------------------------------------
+# --- Data classes and validation -----------------------------------------------
 
 @dataclass
 class AnsageEntry:
@@ -81,7 +81,7 @@ def validate_text(text: str) -> str:
         )
     return text
 
-# --- Funktionen ---------------------------------------------------------------
+# --- Functions ---------------------------------------------------------------
 
 
 def load_yaml(path):
@@ -104,13 +104,13 @@ def load_yaml(path):
 
 
 def save_clone_prompt(prompt_obj, path):
-    """Speichere voice_clone_prompt als JSON (Metadaten)."""
+    """Save metadata about the in-memory voice-clone prompt as JSON."""
     metadata = {
         "source": REF_AUDIO_FILE,
         "ref_text": REF_TEXT_DE,
         "created_at": str(Path.cwd()),
-        "note": "Der eigentliche prompt_obj muss in-memory im Modell gehalten werden; "
-                "diese JSON ist nur Metadaten.",
+        "note": "The prompt_obj itself must remain in the model in memory; "
+                "this JSON file contains metadata only.",
     }
     with open(path, "w") as f:
         json.dump(metadata, f, indent=2)
@@ -118,23 +118,23 @@ def save_clone_prompt(prompt_obj, path):
 
 
 def create_silence(duration_seconds, sample_rate=24000):
-    """Erzeuge ein Stille-Array (zeros) mit gegebener Dauer."""
+    """Create a zero-valued silence array for the specified duration."""
     num_samples = int(duration_seconds * sample_rate)
     return np.zeros(num_samples, dtype=np.float32)
 
 
 def combine_en_de(en_wav, de_wav, sr, pause_duration=2.0):
     """
-    Kombiniere EN-Audio + Pause + DE-Audio zu einer Multiversion.
-    
+    Combine English audio, a pause, and German audio into a bilingual version.
+
     Args:
-        en_wav: Englisches Audio-Array
-        de_wav: Deutsches Audio-Array
-        sr: Sample-Rate (sollte gleich sein)
-        pause_duration: Dauer der Stille in Sekunden
-    
+        en_wav: English audio array
+        de_wav: German audio array
+        sr: Sample rate (must match for both inputs)
+        pause_duration: Duration of silence in seconds
+
     Returns:
-        Kombiniertes Audio-Array
+        Combined audio array
     """
     silence = create_silence(pause_duration, sr)
     combined = np.concatenate([en_wav, silence, de_wav])
@@ -143,8 +143,8 @@ def combine_en_de(en_wav, de_wav, sr, pause_duration=2.0):
 
 def render_batch(ansagen_list):
     """
-    Batch-Render aller Ansagen mit der geclonten Stimme.
-    Erzeugt für jede Ansage: EN, DE, und Multiversion (EN+Pause+DE).
+    Batch-render all announcements using the cloned voice.
+    Each announcement produces EN, DE, and combined EN+pause+DE audio.
     """
     logger.info(f"Batch rendering {len(ansagen_list)} announcements → 3 versions per item: _en, _de, _multiversion")
 
@@ -155,11 +155,11 @@ def render_batch(ansagen_list):
         device_map=DEVICE, dtype=DTYPE, attn_implementation=ATTN,
     )
 
-    # Lade Referenz-Audio
+    # Load reference audio
     logger.info(f"Loading voice reference: {REF_AUDIO_FILE}")
     if not os.path.exists(REF_AUDIO_FILE):
-        raise FileNotFoundError(f"{REF_AUDIO_FILE} nicht gefunden! "
-                                f"Führe erst audition.py aus.")
+        raise FileNotFoundError(f"{REF_AUDIO_FILE} not found! "
+                                f"Run audition.py first.")
     ref_wav, ref_sr = sf.read(REF_AUDIO_FILE)
     logger.info(f"Reference audio: {ref_sr} Hz, {len(ref_wav) / ref_sr:.1f}s")
 
@@ -170,7 +170,7 @@ def render_batch(ansagen_list):
     )
     save_clone_prompt(voice_clone_prompt, CLONE_PROMPT_FILE)
 
-    # Rendere alle Ansagen
+    # Render all announcements
     os.makedirs(RENDERS_DIR, exist_ok=True)
     
     for i, ansage in enumerate(ansagen_list, 1):
@@ -212,7 +212,7 @@ def render_batch(ansagen_list):
 
         logger.debug("Combining EN + 2s pause + DE...")
         try:
-            # Stelle sicher, dass beide die gleiche Sample-Rate haben
+            # Ensure both clips use the same sample rate
             if en_sr != de_sr:
                 logger.warning(f"Sample-Rate mismatch: EN={en_sr}, DE={de_sr}. Using EN as base.")
                 sr = en_sr
@@ -233,13 +233,13 @@ def render_batch(ansagen_list):
 
 
 if __name__ == "__main__":
-    # Lade ansagen.yaml
+    # Load ansagen.yaml
     if not os.path.exists(ANSAGEN_FILE):
-        raise FileNotFoundError(f"{ANSAGEN_FILE} nicht gefunden!")
+        raise FileNotFoundError(f"{ANSAGEN_FILE} not found!")
 
     ansagen = load_yaml(ANSAGEN_FILE)
     if not ansagen:
-        raise ValueError("Keine Ansagen in ansagen.yaml gefunden!")
+        raise ValueError("No announcements found in ansagen.yaml!")
 
     cuda_info = "CUDA available" if torch.cuda.is_available() else "CPU mode"
     device_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"

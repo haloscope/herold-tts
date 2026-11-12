@@ -1,3 +1,3 @@
-"""Herold-TTS: Text-to-Speech with custom voices."""
+"""Herold-TTS: Text-to-speech with custom voices."""
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"

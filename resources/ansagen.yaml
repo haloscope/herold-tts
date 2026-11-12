@@ -1,15 +1,15 @@
-# Ansagen-Liste für Batch-Rendering mit Multiversion
+# Announcement list for batch rendering with combined bilingual output
 # Format: id, text_en, text_de
 # 
-# Output: 3 Versionen pro Ansage
-#   - <id>_en.wav (nur Englisch)
-#   - <id>_de.wav (nur Deutsch)
-#   - <id>_multiversion.wav (EN + 2s Pause + DE)
+# Output: three variants per announcement
+#   - <id>_en.wav (English only)
+#   - <id>_de.wav (German only)
+#   - <id>_multiversion.wav (EN + 2-second pause + DE)
 # 
-# Render-Zeit: nur 2 Synthesen pro Ansage (EN + DE), Multiversion ist Kombination!
+# Render time: only two syntheses per announcement (EN + DE); combined audio is assembled!
 
 ansagen:
-  # Willkommenansage
+  # Welcome announcement
   - id: welcome
     text_en: "Hello, I'm delighted to welcome you to Oscar! This is the Open Source Communication Platform of Schleswig-Holstein."
     text_de: "Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins."
@@ -22,14 +22,14 @@ ansagen:
     text_en: "Thank you for calling. We are currently unable to take your call. Please leave a message and we will respond as soon as possible."
     text_de: "Vielen Dank für Ihren Anruf. Momentan kann ihr Anruf nicht persönlich entgegengenommen werden. Bitte versuchen Sie es zu einem späteren Zeitpunkt erneut."
   
-  # Weitere Ansagen hier einfügen (id, text_en, text_de)
-  # Beispiel:
+  # Add further announcements here (id, text_en, text_de)
+  # Example:
   # - id: voicemail
   #   text_en: "Please leave a message after the tone."
   #   text_de: "Bitte hinterlassen Sie eine Nachricht nach dem Signalton."
 
-# Ansagen-Liste für Batch-Rendering
-# Format: id, sprache (German|English), text
+# Announcement list for batch rendering
+# Format: id and separate text_en/text_de fields
 # 
-# Die Stimme (voice_clone_prompt) wird aus audition/reference_design_de.wav
-# erzeugt und bleibt über alle Ansagen hinweg identisch.
+# The voice (voice_clone_prompt) is created from audition/reference_design_de.wav
+# and remains consistent across all announcements.

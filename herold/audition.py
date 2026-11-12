@@ -2,17 +2,17 @@
 """
 audition.py
 
-Erzeugt Kandidaten-Samples für Voicemail-Ansagen mit TRENNSCHÄRFEREN PROMPTS.
+Generates candidate voicemail samples using more discriminating voice prompts.
 
-CustomVoice-Presets hatten unterschiedliche Emphase und Intonation.
-Lösung:
-  - Explizite, detaillierte Instruktionen für "neutral, steady, no variation"
-  - Nur die besten Kandidaten testen (nicht alle 9)
-  - VoiceDesign mit acoustic properties statt Persona
-  - design_then_clone Workflow für maximale Stabilität
+CustomVoice presets varied in emphasis and intonation. To improve consistency:
+  - Use explicit instructions for a neutral, steady delivery
+  - Test only the best candidates rather than all nine presets
+  - Describe acoustic properties instead of a persona for VoiceDesign
+  - Use a design-then-clone workflow to stabilize the chosen voice
 
-Ausgabe: ./audition/*.wav  (24 kHz WAV)
-Danach: anhoeren, Favorit wählen & Favorit in der render.py als REF_AUDIO_FILE setzen.
+Output: ./audition/*.wav (24 kHz WAV)
+Next: listen to candidates, choose a reference and configure REF_AUDIO_FILE
+for render.py.
 """
 
 import os
@@ -25,7 +25,7 @@ from .config import config
 
 logger = setup_logger(__name__)
 
-# --- Konfiguration -----------------------------------------------------------
+# --- Configuration -----------------------------------------------------------
 
 OUT_DIR = config.audition_dir
 ATTN = config.attn_implementation
@@ -55,25 +55,25 @@ def get_model(model_name: str):
     finally:
         pass  # Keep cached for next use
 
-# Testsatz für Voicemail
+# Sample voicemail announcement texts (German audio is intentional)
 TEXT_DE = ("Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! "
            "Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins")
 TEXT_EN = ("Hello, I'm delighted to welcome you to Oscar!"
            "This is the Open Source Communication Platform of Schleswig-Holstein.")
 
-# A) CustomVoice-Kandidaten mit spezifischen Instruktionen.
-#    Schlüssel: neutral, steady, konsistent über DE+EN.
-#    Dict statt List -> Pro Speaker explizite Instruktion.
+# A) CustomVoice candidates with specific instructions.
+#    Key criteria: neutral, steady and consistent across German and English.
+#    Dictionary: explicit instructions for each speaker.
 CUSTOM_SPEAKERS = {
-    # Weibliche Stimmen (die stabilen)
+    # Female voices (the most stable candidates)
     "vivian": "Calm, professional, controlled, neutral affect, "
               "consistent volume, clear articulation, steady pacing",
     "sohee": "Neutral, professional, measured tone, steady delivery, "
              "clear enunciation, no emphasis variations, consistent pace",
 }
 
-# B) VoiceDesign mit acoustic properties (nicht Persona).
-#    Explizit auf Voicemail-Anforderung ausgerichtet.
+# B) VoiceDesign based on acoustic properties (rather than persona).
+#    Tailored specifically to voicemail announcements.
 VOICE_DESIGNS = {
     "design_female_neutral": (
         "Mature female voice, lower-to-mid register, neutral professional tone, "
@@ -88,12 +88,12 @@ VOICE_DESIGNS = {
     ),
 }
 
-# Optional: Design-then-Clone Workflow für maximale Stabilität
-#           Erzeugt einmal eine Referenz mit VoiceDesign, klont dann davon.
-#           (Aktiviert mit USE_DESIGN_THEN_CLONE = True)
+# Optional: design-then-clone workflow for maximum consistency
+#           Generate a VoiceDesign reference once, then clone it.
+#           (Enabled with USE_DESIGN_THEN_CLONE = True)
 USE_DESIGN_THEN_CLONE =  True
 
-# --- Funktionen ---------------------------------------------------------------
+# --- Functions ---------------------------------------------------------------
 
 
 def save(wav, sr, name):
@@ -103,7 +103,7 @@ def save(wav, sr, name):
 
 
 def run_custom_voice():
-    """CustomVoice: fertige Presets mit expliziten Instruktionen."""
+    """CustomVoice: preset voices with explicit delivery instructions."""
     logger.info("[A] CustomVoice (preset speakers with instructions)")
 
     with get_model("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice") as model:
@@ -125,7 +125,7 @@ def run_custom_voice():
 
 
 def run_voice_design():
-    """VoiceDesign: Stimmen per acoustic-Beschreibung."""
+    """VoiceDesign: generate voices from acoustic descriptions."""
     logger.info("[B] VoiceDesign (design voices by description)")
 
     with get_model("Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign") as model:

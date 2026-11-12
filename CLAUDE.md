@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Herold-TTS (package `herold`, version in `herold/__init__.py`) renders pre-produced German/English phone and voicemail announcements with **one consistent voice**, using Qwen3-TTS (1.7B, MIT-licensed) voice cloning. It's a batch pipeline + REST API, not a live/streaming TTS service. The stack targets an NVIDIA Blackwell GPU (CUDA 12.8+) with a CPU fallback path (`docker/Dockerfile.cpu`).
+Herold-TTS (package `herold`, version in `herold/__init__.py`) renders pre-produced German/English phone and voicemail announcements with **one consistent voice**, using Qwen3-TTS (1.7B; third-party models retain their own licenses) voice cloning. It's a batch pipeline + REST API, not a live/streaming TTS service. The stack targets an NVIDIA Blackwell GPU (CUDA 12.8+) with a CPU fallback path (`docker/Dockerfile.cpu`).
 
-Communication with the user is in German. Builds and end-to-end tests run on a separate Windows(WSL)/Debian machine (RTX 5090); this Mac has no Python toolchain — only editing, tests-in-container, and git happen here.
+Project documentation, comments, logs, and user interface copy are in English. German speech examples assigned to `text_de` must remain in German. GPU/CPU model inference, Docker builds, and end-to-end validation belong on the dedicated Debian/WSL test machine (RTX 5090). On development Macs, lightweight mocked pytest runs can use a Python 3.12 virtual environment; avoid resource-intensive model or container builds on 8 GB hosts.
 
 ## Commands
 
@@ -14,7 +14,7 @@ Communication with the user is in German. Builds and end-to-end tests run on a s
 # Build & start (GPU host) — compose up starts the API on port 8000
 docker compose build
 docker compose up -d          # → http://localhost:8000/ (Demo) · /docs (Swagger UI)
-docker compose --profile cpu up -d   # CPU-Variante → Port 8001
+docker compose --profile cpu up -d herold-tts-cpu   # CPU-only service → port 8001
 
 # Blackwell/CUDA check after build
 docker compose exec herold-tts-gpu python -c \
@@ -67,7 +67,7 @@ Both Dockerfiles are multi-stage (builder venv → slim runtime) and drop to a n
 
 ## Gotchas
 
-- `qwen-tts` is intentionally **not** in `requirements.txt`: its dependency resolution pulls an incompatible torchaudio. The Dockerfiles install it with `--no-deps` plus explicitly pinned deps; `torch`/`torchaudio` are a matched cu128 pair — always upgrade them together.
+- `qwen-tts` is intentionally **not** in `requirements.txt`: its dependency resolution pulls an incompatible torchaudio. The Dockerfiles install it with `--no-deps` plus explicitly pinned deps; `torch`/`torchaudio` must remain a compatible pair; verify the actual GPU wheel/CUDA compatibility when upgrading.
 - Non-root container user: `HF_HOME=/app/.cache/huggingface` (no real `$HOME`) and `NUMBA_CACHE_DIR=/tmp/numba_cache` are load-bearing — removing them breaks model download / librosa import. The HF cache is not volume-mounted, so image rebuilds re-download ~3.8–11 GB (see docs/HARDWARE.md).
 - Host-side bind-mount dirs (`data/{audition,renders,final}`) must be writable by uid 999, or WAV writes fail with a generic `LibsndfileError` (see docs/DEPLOYMENT.md "Volume Permissions").
 - `render_batch`/`audition.get_model` don't fully release GPU memory on exception paths — mind VRAM when adding model-loading code.
@@ -150,14 +150,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ### 5. Document Decisions (ADR) and Work (AAR)
 
-Development work must be documented continuously, in German, in two forms:
+Development work must be documented continuously, **in English**, in two forms:
 
 - **ADR** (Architecture Decision Record) — `docs/adr/NNNN-<slug>.md`, sequentially numbered.
   Write one whenever a decision shapes architecture, tooling, or process (engine choice, branch
-  strategy, format decisions, …). Sections: Status / Kontext / Entscheidung / Konsequenzen.
+  strategy, format decisions, …). Sections: Status / Context / Decision / Consequences.
   Never rewrite an accepted ADR — supersede it with a new one and link both.
 - **AAR** (After Action Review) — `docs/aar/YYYY-MM-DD-<slug>.md`. Write one after significant
-  work sessions, releases, or incidents. Sections: Ziel / Was geschah / Gelernt / Offene Punkte.
+  work sessions, releases, or incidents. Sections: Objective / What happened / Lessons learned / Open items.
 
 CHANGELOG.md records *what* changed per version; ADRs record *why* decisions were made; AARs
 record *how* the work went. Keep all three current — undocumented decisions are the failure mode

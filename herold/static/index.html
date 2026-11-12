@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -42,43 +42,43 @@
 </head>
 <body>
 <header>
-  <h1>Herold-TTS — Demo-Webservice</h1>
-  <div class="meta" id="service-meta">Verbinde mit API …</div>
+  <h1>Herold-TTS — Demo Web Service</h1>
+  <div class="meta" id="service-meta">Connecting to API…</div>
 </header>
 <main>
   <section>
-    <h2>1 · Ansage rendern</h2>
-    <p class="hint">Erzeugt pro Ansage drei WAV-Dateien mit der Signature-Stimme:
-      <code>_en</code>, <code>_de</code> und <code>_multiversion</code> (EN + 2&nbsp;s Pause + DE).
-      Exemplarischer Ablauf: <code>POST /api/render</code> → <code>GET /api/jobs/{id}</code> pollen
-      → Dateien über <code>/api/files</code> abrufen. Alle Endpoints:
+    <h2>1 · Render an Announcement</h2>
+    <p class="hint">Generates three WAV files per announcement with the signature voice:
+      <code>_en</code>, <code>_de</code> and <code>_multiversion</code> (EN + 2&nbsp;s pause + DE).
+      Example workflow: <code>POST /api/render</code> → <code>GET /api/jobs/{id}</code> for job status
+      → fetch files through <code>/api/files</code>. All endpoints:
       <a href="/docs">Swagger UI</a>.</p>
     <form id="render-form">
-      <label for="ansage-id">ID (Dateiname, nur a–z, 0–9, _ , -)</label>
+      <label for="ansage-id">ID (filename: only a–z, 0–9, _ and -)</label>
       <input type="text" id="ansage-id" required pattern="[a-zA-Z0-9_-]+" value="demo">
-      <label for="text-en">Text Englisch</label>
+      <label for="text-en">English text</label>
       <textarea id="text-en" required>Hello, I'm delighted to welcome you to Oscar! This is the Open Source Communication Platform of Schleswig-Holstein.</textarea>
-      <label for="text-de">Text Deutsch</label>
+      <label for="text-de">German text</label>
       <textarea id="text-de" required>Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen! Hierbei handelt es sich um die Open Source Kommunikations Plattform Schleswig-Holsteins.</textarea>
-      <button type="submit" id="render-btn">Rendern</button>
+      <button type="submit" id="render-btn">Render</button>
     </form>
     <div class="status" id="render-status"></div>
   </section>
 
   <section>
-    <h2>2 · Zu AAC + MP3 konvertieren</h2>
-    <p class="hint">Konvertiert alle gerenderten WAVs mit Loudness-Normalisierung
-      (EBU&nbsp;R128, −23&nbsp;LUFS) zu <code>.m4a</code> und <code>.mp3</code>
+    <h2>2 · Convert to AAC + MP3</h2>
+    <p class="hint">Converts all rendered WAV files with loudness normalization
+      (EBU&nbsp;R128, −23&nbsp;LUFS) to <code>.m4a</code> and <code>.mp3</code>
       (<code>POST /api/convert</code>).</p>
-    <button id="convert-btn" class="secondary">Konvertieren</button>
+    <button id="convert-btn" class="secondary">Convert</button>
     <div class="status" id="convert-status"></div>
   </section>
 
   <section>
-    <h2>3 · Dateien</h2>
-    <p class="hint">Inhalt von <code>data/renders/</code> und <code>data/final/</code>
-      (<code>GET /api/files</code>). Anhören direkt im Browser, Download per Klick auf den Namen.</p>
-    <button id="refresh-btn" class="secondary">Aktualisieren</button>
+    <h2>3 · Files</h2>
+    <p class="hint">Contents of <code>data/renders/</code> and <code>data/final/</code>
+      (<code>GET /api/files</code>). Play audio in the browser; click the filename to download.</p>
+    <button id="refresh-btn" class="secondary">Refresh</button>
     <div id="file-list"></div>
   </section>
 </main>
@@ -108,9 +108,9 @@ async function waitForJob(jobId, statusEl, label) {
   for (;;) {
     const job = await api("/api/jobs/" + jobId);
     if (job.status === "done") return job;
-    if (job.status === "failed") throw new Error(job.error || "Job fehlgeschlagen");
+    if (job.status === "failed") throw new Error(job.error || "Job failed");
     setStatus(statusEl, '<span class="spinner"></span> ' + label +
-      " läuft … (Job <code>" + jobId + "</code>, Status: " + job.status + ")");
+      " in progress… (job <code>" + jobId + "</code>, status: " + job.status + ")");
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
 }
@@ -121,13 +121,13 @@ async function loadServiceMeta() {
   try {
     const s = await api("/api/status");
     $("service-meta").innerHTML = s.service + " v" + s.version +
-      " · Gerät: <code>" + s.device + "</code> · <a href='/docs'>API-Doku</a>";
+      " · Device: <code>" + s.device + "</code> · <a href='/docs'>API-Doku</a>";
   } catch (e) {
-    $("service-meta").textContent = "API nicht erreichbar: " + e.message;
+    $("service-meta").textContent = "API unavailable: " + e.message;
   }
 }
 
-// --- Rendern ------------------------------------------------------------
+// --- Rendering ------------------------------------------------------------
 
 $("render-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -143,16 +143,16 @@ $("render-form").addEventListener("submit", async (ev) => {
       }),
     });
     await waitForJob(resp.job_id, st, "Rendering");
-    setStatus(st, "✓ Fertig — drei WAV-Dateien erzeugt (siehe Abschnitt 3).", "ok");
+    setStatus(st, "✓ Done — three WAV files generated (see section 3).", "ok");
     await loadFiles();
   } catch (e) {
-    setStatus(st, "Fehler: " + e.message, "error");
+    setStatus(st, "Error: " + e.message, "error");
   } finally {
     btn.disabled = false;
   }
 });
 
-// --- Konvertieren -------------------------------------------------------
+// --- Conversion -------------------------------------------------------
 
 $("convert-btn").addEventListener("click", async () => {
   const btn = $("convert-btn"), st = $("convert-status");
@@ -163,17 +163,17 @@ $("convert-btn").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-    await waitForJob(resp.job_id, st, "Konvertierung");
-    setStatus(st, "✓ Fertig — AAC- und MP3-Dateien liegen in data/final/.", "ok");
+    await waitForJob(resp.job_id, st, "Conversion");
+    setStatus(st, "✓ Done — AAC and MP3 files saved in data/final/.", "ok");
     await loadFiles();
   } catch (e) {
-    setStatus(st, "Fehler: " + e.message, "error");
+    setStatus(st, "Error: " + e.message, "error");
   } finally {
     btn.disabled = false;
   }
 });
 
-// --- Dateiliste ---------------------------------------------------------
+// --- File listing ---------------------------------------------------------
 
 function formatSize(bytes) {
   if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
@@ -185,7 +185,7 @@ async function loadFiles() {
   try {
     const data = await api("/api/files");
     if (!data.files.length) {
-      target.innerHTML = "<p class='hint'>Noch keine Dateien vorhanden.</p>";
+      target.innerHTML = "<p class='hint'>No files available yet.</p>";
       return;
     }
     const rows = data.files.map((f) =>
@@ -194,10 +194,10 @@ async function loadFiles() {
       "<td>" + formatSize(f.size) + "</td>" +
       "<td><audio controls preload='none' src='" + f.url + "'></audio></td></tr>"
     ).join("");
-    target.innerHTML = "<table><thead><tr><th>Datei</th><th>Ordner</th><th>Größe</th>" +
-      "<th>Anhören</th></tr></thead><tbody>" + rows + "</tbody></table>";
+    target.innerHTML = "<table><thead><tr><th>File</th><th>Directory</th><th>Size</th>" +
+      "<th>Listen</th></tr></thead><tbody>" + rows + "</tbody></table>";
   } catch (e) {
-    target.innerHTML = "<p class='status error'>Fehler beim Laden: " + e.message + "</p>";
+    target.innerHTML = "<p class='status error'>Failed to load files: " + e.message + "</p>";
   }
 }
 

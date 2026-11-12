@@ -46,7 +46,7 @@ services:
     #           capabilities: [gpu]
 
   # CPU-only variant. Not started by default — opt in via:
-  #   docker compose --profile cpu up -d   → API on http://localhost:8001
+  #   docker compose --profile cpu up -d herold-tts-cpu → API on http://localhost:8001
   herold-tts-cpu:
     profiles: ["cpu"]
     build:

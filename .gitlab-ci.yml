@@ -1,14 +1,14 @@
-# GitLab CI: Tests bei jedem Push, Image-Builds + Registry-Push nur auf main.
-# Siehe docs/adr/0003-ci-image-builds.md.
+# GitLab CI: Run tests on every push; build and publish container images only on main.
+# See docs/adr/0003-ci-image-builds.md.
 #
-# Runner-Voraussetzungen:
-#   - Docker-Executor mit durchgereichtem /var/run/docker.sock
-#     (dadurch nutzt der Build den Layer-Cache des Runner-Hosts — Folgebuilds sind schnell)
-#   - Internetzugang: Docker Hub, PyPI, download.pytorch.org
-#   - Container Registry im Projekt aktiviert
+# Runner requirements:
+#   - Docker executor with /var/run/docker.sock passed through from the runner host.
+#     This preserves the host's layer cache and speeds up subsequent builds.
+#   - Network access to Docker Hub, PyPI, and download.pytorch.org.
+#   - Project container registry enabled.
 #
-# Registry-Aufbewahrung: pro Image nur aktuelle + Vorgänger-Version (cleanup-Job, keep_n=2);
-# der Tag "latest" bleibt immer stehen.
+# Image retention: keep the current and previous version of each image
+# (cleanup job, keep_n=2). Always retain the "latest" tag.
 
 stages:
   - test
@@ -16,10 +16,10 @@ stages:
   - scan
   - cleanup
 
-# GitLab-Security-Scans (seit v0.4.3 wieder aktiv; die alte CI hatte sie bis zum
-# Restrukturierungs-Commit 2026-07-06). Die Template-Jobs (semgrep-sast,
-# secret_detection) laufen in der test-Stage jeder Pipeline; Findings liegen als
-# Job-Artefakte (gl-sast-report.json / gl-secret-detection-report.json) vor.
+# GitLab security scans were restored in v0.4.3 after the previous pipeline
+# was removed during restructuring on 2026-07-06. The template jobs (semgrep-sast
+# and secret_detection) run in the test stage and publish their findings as
+# artifacts (gl-sast-report.json and gl-secret-detection-report.json).
 include:
   - template: Security/SAST.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
@@ -38,26 +38,26 @@ test:
     paths:
       - .cache/pip
   before_script:
-    # CPU-Wheels wie in docker/Dockerfile.cpu: ohne CUDA-Ballast (~150 MB statt ~5 GB)
+    # CPU wheels match docker/Dockerfile.cpu: no unnecessary CUDA runtime (~150 MB vs ~5 GB)
     - pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch torchaudio
     - pip install --quiet -r requirements.txt
   script:
     - pytest -q --junitxml=pytest-report.xml
   artifacts:
-    when: always          # Report auch bei roten Tests hochladen — gerade dann!
+    when: always          # Upload reports even when tests fail (especially then).
     reports:
       junit: pytest-report.xml
     expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH
 
-# Gemeinsame Basis der Docker-Jobs
+# Shared base for Docker jobs
 .docker-job:
   image: docker:27-cli
   before_script:
     - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - VERSION=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' herold/__init__.py | head -1)
-    - echo "Baue Version $VERSION"
+    - echo "Building version $VERSION"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -77,10 +77,10 @@ build-cpu:
     - docker push "$CPU_IMAGE:$VERSION"
     - docker push "$CPU_IMAGE:latest"
 
-# Container-CVE-Scan der frisch gebauten Images (report-only, blockt nie — erst
-# Baseline ansehen, dann ggf. auf --exit-code 1 verschärfen). GitLabs offizielles
-# Container-Scanning-Template ist Ultimate-only, daher Trivy direkt. Findings:
-# Tabellen im Job-Log, JSON-Reports als Artefakte (30 Tage).
+# Scan newly built images for container CVEs. Report-only for now: review the
+# baseline before considering --exit-code 1. GitLab's official container-scanning
+# template requires Ultimate, so this job runs Trivy directly. Findings are shown
+# in the job log, with JSON artifacts retained for 30 days.
 container-scan:
   stage: scan
   image:
@@ -110,16 +110,16 @@ container-scan:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# Behalte pro Image-Repository nur die aktuelle + die Vorgänger-Version (keep_n=2).
-# "latest" matcht die Versions-Regex nicht und bleibt unangetastet.
+# Retain only the current and preceding image versions (keep_n=2).
+# The "latest" tag does not match the version regex and is not deleted.
 #
-# Benötigt die CI/CD-Variable REGISTRY_CLEANUP_TOKEN (Project Access Token,
-# Rolle Maintainer, Scope "api", als masked Variable anlegen) — der normale
-# CI_JOB_TOKEN darf keine Registry-Tags löschen.
+# Requires the masked CI/CD variable REGISTRY_CLEANUP_TOKEN, containing a
+# Maintainer-level Project Access Token with the "api" scope. The ordinary
+# CI_JOB_TOKEN cannot delete registry tags.
 #
-# GitLab drosselt die Bulk-Delete-API auf 1 Aufruf/Stunde/Repository, daher
-# allow_failure: bei schnell aufeinanderfolgenden main-Pushes schlägt nur das
-# Aufräumen fehl, nicht die Pipeline; der nächste Lauf holt es nach.
+# GitLab rate-limits the bulk-delete API to one call per hour per repository.
+# Therefore allow_failure is intentional: rapid successive pushes may cause only
+# cleanup to fail, without failing the pipeline. A later run can clean up.
 cleanup-registry:
   stage: cleanup
   image: alpine:3.22
@@ -130,7 +130,7 @@ cleanup-registry:
     - |
       for repo_id in $(curl -sf --header "PRIVATE-TOKEN: $REGISTRY_CLEANUP_TOKEN" \
           "$CI_API_V4_URL/projects/$CI_PROJECT_ID/registry/repositories" | jq -r '.[].id'); do
-        echo "Bereinige Registry-Repository $repo_id (behalte 2 Versions-Tags + latest)"
+        echo "Cleaning registry repository $repo_id (retaining 2 version tags and latest)"
         curl -sf --request DELETE --header "PRIVATE-TOKEN: $REGISTRY_CLEANUP_TOKEN" \
           --data-urlencode 'name_regex_delete=^[0-9]+\.[0-9]+\.[0-9]+$' \
           --data-urlencode 'keep_n=2' \

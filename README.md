@@ -6,25 +6,28 @@
 [![Latest GitHub release](https://img.shields.io/github/v/release/haloscope/herold-tts?label=release)](https://github.com/haloscope/herold-tts/releases)
 [![Git tags](https://img.shields.io/github/v/tag/haloscope/herold-tts?label=latest%20tag)](https://github.com/haloscope/herold-tts/tags)
 [![Last commit](https://img.shields.io/github/last-commit/haloscope/herold-tts)](https://github.com/haloscope/herold-tts/commits/main)
-[![Application version](https://img.shields.io/badge/application%20version-0.4.3-blue)](CHANGELOG.md)
+[![Application version](https://img.shields.io/badge/application%20version-0.4.4-blue)](CHANGELOG.md)
 
 Herold-TTS generates German and English announcements in a **consistent, custom-designed voice** using [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS). It combines a reproducible batch-rendering pipeline with a REST API and a small demo web interface. Audio is generated on your own infrastructure; after the models have been downloaded, synthesis does not require a hosted TTS API.
 
 The project is designed for **pre-rendering**, not real-time or streaming speech synthesis. The application code is licensed under MIT; third-party dependencies and models retain their own licenses.
 
-## Versions, releases, and tags
+## Versions and releases
 
-The application sources on `main` document version **0.4.3** in the [changelog](CHANGELOG.md). This is **not automatically the same as the latest published GitHub Release**: Git tags, GitHub Releases, and the application version are separate version indicators.
+Version **0.4.4** standardizes the documentation and interface language based on the v0.4.3 application. A source version, an annotated Git tag, and a published GitHub Release are **separate**: a version number in the code does not by itself imply that the corresponding tag or release has been published.
 
-GitHub Releases currently visible for this repository (checked November 12, 2026):
+| Version | Highlights | Release |
+|---|---|---|
+| `0.4.4` | English documentation, demo UI, diagnostics, and SBOM refresh | [Release 0.4.4](https://github.com/haloscope/herold-tts/releases/tag/0.4.4) |
+| `0.4.3` | GitLab security scans, JUnit reports, and CI hardening | [Release 0.4.3](https://github.com/haloscope/herold-tts/releases/tag/0.4.3) |
+| `0.4.2` | GitLab CI/CD builds and container registry publication | [Release 0.4.2](https://github.com/haloscope/herold-tts/releases/tag/0.4.2) |
+| `0.4.1` | CPU-image dependencies and HTTP health checks | [Release 0.4.1](https://github.com/haloscope/herold-tts/releases/tag/0.4.1) |
+| `0.4.0` | Asynchronous jobs, file endpoints, and demo frontend | [Release 0.4.0](https://github.com/haloscope/herold-tts/releases/tag/0.4.0) |
+| `0.3.5` | Persistent Hugging Face model cache | [Release 0.3.5](https://github.com/haloscope/herold-tts/releases/tag/0.3.5) |
+| `0.3.4` | Version consolidation and reproducible voice reference | [Release 0.3.4](https://github.com/haloscope/herold-tts/releases/tag/0.3.4) |
+| `0.3.3` | CPU inference and Docker runtime fixes | [Release 0.3.3](https://github.com/haloscope/herold-tts/releases/tag/0.3.3) |
 
-| Git tag | GitHub Release |
-| --- | --- |
-| `0.1.0` | [Initial release](https://github.com/haloscope/herold-tts/releases/tag/0.1.0) |
-| `v0.2.0` | [Bug fixes and pipeline improvements](https://github.com/haloscope/herold-tts/releases/tag/v0.2.0) |
-| `0.3.0` | [Production-ready improvements](https://github.com/haloscope/herold-tts/releases/tag/0.3.0) |
-
-See **[all repository tags](https://github.com/haloscope/herold-tts/tags)**, **[GitHub Releases](https://github.com/haloscope/herold-tts/releases)**, and the **[full changelog](CHANGELOG.md)** for version history. The table above lists releases confirmed on GitHub, **not necessarily every Git tag**. A Git tag exists independently of whether a GitHub Release has been published for it.
+Earlier releases and historical tag names are available from [GitHub Releases](https://github.com/haloscope/herold-tts/releases) and [all Git tags](https://github.com/haloscope/herold-tts/tags). The historical tags intentionally use several conventions (`0.1`, `0.1.0`, `v0.2.0`, `0.3.0`, etc.); do not rewrite old tags to standardize their spelling. The [changelog](CHANGELOG.md) records the detailed changes and outstanding validation limits.
 
 ## Features
 
@@ -147,10 +150,10 @@ Once rendering has completed:
 ```bash
 curl -X POST http://localhost:8000/api/convert \
   -H 'Content-Type: application/json' \
-  -d '{"filter_pattern": "*.wav"}'
+  -d '{}'
 ```
 
-Conversion also returns a `job_id`, which can be checked using the same job-status endpoint.
+Conversion also returns a `job_id`, which can be checked using the same job-status endpoint. The current implementation processes the WAV files in the configured renders directory; the optional `filter_pattern` request field is defined in the API model but is not currently applied by the conversion handler.
 
 ### List and download audio files
 
@@ -267,6 +270,12 @@ The main modules are `herold/audition.py`, `herold/render.py`, `herold/convert.p
 
 The Docker Compose file mounts the data directories and model cache so output and downloaded model files can survive container recreation. The reference announcement file is mounted read-only.
 
+## Language policy and compatibility
+
+The user-facing UI, API diagnostics, code comments, and project documentation are written in **English**. The application intentionally generates **German and English speech**: `text_de` values, `config.ref_text_de`, the demonstration German speech text, and `reference_design_de.wav` remain German. These are data and stable interface identifiers, not untranslated interface strings.
+
+The localization release does not change the REST JSON field names (`ansagen`, `text_de`, `text_en`), endpoints, audio filename conventions, or reference-audio path, so existing integrations remain compatible.
+
 ## Testing and CI
 
 Run the unit tests in an environment with the required Python dependencies installed:
@@ -280,7 +289,7 @@ pytest --cov=herold
 
 The tests mock Qwen-TTS where applicable; passing them does **not** constitute a complete GPU inference or end-to-end audio-quality test.
 
-The repository currently includes a **GitLab CI** configuration (`.gitlab-ci.yml`) for testing, image builds and security checks. Migrating the Git repository to GitHub does not automatically convert that pipeline into GitHub Actions. GitHub-hosted CI/CD must be configured separately if needed.
+The repository includes a **GitLab CI** configuration (`.gitlab-ci.yml`) for tests, image builds and security checks. GitHub migration does not automatically convert this pipeline into GitHub Actions, and no GitHub Actions workflow is claimed here. CI credentials and registry destinations must be reviewed before enabling CI in a new environment.
 
 ## Documentation
 
@@ -292,8 +301,8 @@ The repository currently includes a **GitLab CI** configuration (`.gitlab-ci.yml
 
 ## License and third-party components
 
-**Herold-TTS application code is distributed under the [MIT License](LICENSE).**
+**Herold-TTS application code is distributed under the [MIT License](LICENSE).** Preserve the copyright and license notice when redistributing the project.
 
-The Qwen3-TTS models and related upstream software have their **own licenses** (including Apache-2.0 for Qwen3-TTS models). NVIDIA CUDA/cuDNN are proprietary components, while system utilities such as FFmpeg and SoX have their respective open-source license obligations. See [SBOM.md](SBOM.md) for the dependency inventory and verify the applicable license terms before redistributing bundled binaries or container images.
+The Qwen3-TTS models and related upstream software have their **own licenses** (including Apache-2.0 for Qwen3-TTS models). NVIDIA CUDA/cuDNN are proprietary components, while system utilities such as FFmpeg and SoX have their respective open-source license obligations. See [SBOM.md](SBOM.md) and [SBOM.csv](SBOM.csv) for the refreshed source-level dependency inventory. This is not a complete resolved/image SBOM. Verify the applicable licenses before redistributing models, audio references, or bundled binaries and container images.
 
-*Documentation reviewed against the public `main` branch on November 12, 2026. The published-release list and the application version are intentionally shown separately.*
+*Documentation updated from the v0.4.3 source archive for v0.4.4 on November 12, 2026. Hardware end-to-end validation remains outstanding where noted.*

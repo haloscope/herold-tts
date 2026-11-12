@@ -1,37 +1,19 @@
-# ADR 0002: Demo-Webservice als integrierte statische Seite; Job-Tracking in-memory
+# ADR 0002: Integrated static demo page and in-memory job tracking
 
-**Status:** Akzeptiert (2026-08-03)
+**Status:** Accepted (2026-08-03)
 
-## Kontext
+## Context
 
-Die Roadmap sieht nach CLI und REST-API einen exemplarischen Webservice vor, der zeigt, wie
-man Herold-TTS nutzt. Die API v0.3.x war dafür unzureichend: Render/Convert liefen als
-Fire-and-forget-Background-Tasks (202 ohne Job-Referenz), es gab weder einen Weg, Fertigstellung
-oder Fehler zu erkennen, noch die erzeugten Audiodateien per HTTP abzurufen. Zur Auswahl standen
-für die Demo: (a) statische HTML-Seite, ausgeliefert von der FastAPI-App selbst, (b) Gradio-UI
-(bereits als qwen-tts-Abhängigkeit installiert), (c) separater Frontend-Container; fürs
-Job-Tracking: In-Memory-Registry vs. reines Datei-Polling vs. persistente Queue.
+The roadmap calls for an example web service showing how to use Herold-TTS after the CLI and REST API. The v0.3.x API was not sufficient: rendering and conversion were fire-and-forget background tasks (HTTP 202 without a job reference). There was no way to determine completion or failure or retrieve generated audio over HTTP. Options for the demo included (a) a static HTML page served by FastAPI, (b) Gradio (already installed as a `qwen-tts` dependency), and (c) a separate frontend container. Options for tracking included an in-memory registry, file polling, and a persistent queue.
 
-## Entscheidung
+## Decision
 
-1. **Demo als selbst-enthaltene statische Seite in der FastAPI-App** (`herold/static/index.html`,
-   gemountet unter `/demo`, Root `/` leitet dorthin um). Ein Container, ein Port, keine
-   CDN-Abhängigkeiten; die Seite nutzt ausschließlich die öffentliche REST-API und ist damit
-   zugleich Integrations-Blaupause. Gradio verworfen (läuft an der API vorbei), separater
-   Container verworfen (Mehraufwand ohne Demo-Nutzen).
-2. **Job-Tracking als In-Memory-Registry** in `herold/api.py` (Dict + `threading.Lock`,
-   `job_id` in der 202-Antwort, `GET /api/jobs/{id}`). Fehler aus `render_batch`/`batch_convert`
-   werden als `failed` mit Fehlertext erfasst.
-3. **Ergebnis-Zugriff über Datei-Endpoints** (`GET /api/files`, `GET /api/files/{dir}/{name}`),
-   abgesichert durch Wiederverwendung von `convert.validate_filename_stem` plus
-   Verzeichnis- und Extension-Whitelist.
+1. **Embed a self-contained static demo in FastAPI** (`herold/static/index.html`, mounted at `/demo`; `/` redirects there). One container, one port, no CDN dependencies. The page uses only the public REST API, so it also serves as an integration example. Gradio was rejected because it bypasses the API; a separate frontend was unnecessary for a demo.
+2. **Track jobs in memory** in `herold/api.py` (dictionary plus `threading.Lock`; `job_id` in the HTTP 202 response; `GET /api/jobs/{id}`). Exceptions raised by `render_batch` or `batch_convert` are recorded as `failed` with an error message.
+3. **Expose results through file endpoints** (`GET /api/files` and `GET /api/files/{dir}/{name}`), reusing `convert.validate_filename_stem` and allowlists for directories and extensions.
 
-## Konsequenzen
+## Consequences
 
-- Job-Status überlebt keinen Neustart und wird nicht zwischen Instanzen geteilt — für den
-  Demo-/Single-Instance-Betrieb akzeptiert. Für Produktion mit mehreren Instanzen oder
-  Restart-Garantien wäre eine persistente Queue (z. B. Redis) nötig → dann neues ADR.
-- Kein Auth/Rate-Limiting: Die API ist für den Betrieb hinter einer vertrauenswürdigen
-  Netzgrenze gedacht, nicht fürs offene Internet.
-- Die Demo wird über die bestehenden `COPY herold/`-Zeilen der Dockerfiles automatisch
-  mit ausgeliefert; kein zusätzlicher Build-Schritt.
+- Job states do not survive restarts or synchronize between instances. This is acceptable for a demo or single instance. Multi-instance production or guaranteed job recovery would require a persistent queue (for example Redis) and a new ADR.
+- No authentication or rate limiting is provided. Operate the API behind a trusted network boundary, not on the open Internet.
+- Both Dockerfiles already copy `herold/`, so the demo is included without an additional build step.

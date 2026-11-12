@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-convert.py - Batch-Konvertierung zu AAC + MP3.
+convert.py - Batch conversion to AAC and MP3.
 
 Pipeline:
-1. Lese ./renders/*.wav (24 kHz, von render.py)
-2. Normalisiere Loudness (EBU R128 -23 LUFS, typisch für Broadcast)
-3. Speichere beide Formate:
+1. Read ./renders/*.wav (24 kHz, from render.py)
+2. Normalize loudness (EBU R128, -23 LUFS, typical for broadcast)
+3. Save both output formats:
    - ./final/*.m4a (AAC, ~192 kbps)
    - ./final/*.mp3 (MP3, ~192 kbps VBR)
 
-Ausgabe: ./final/<id>.m4a und ./final/<id>.mp3
+Output: ./final/<id>.m4a and ./final/<id>.mp3
 """
 
 import os
@@ -22,7 +22,7 @@ from .config import config
 
 logger = setup_logger(__name__)
 
-# --- Konfiguration -----------------------------------------------------------
+# --- Configuration -----------------------------------------------------------
 
 RENDERS_DIR = config.renders_dir
 FINAL_DIR = config.final_dir
@@ -51,7 +51,7 @@ def get_loudness_filter(target_lufs="-23"):
 
 
 def convert_wav_to_aac(wav_path, output_path, loudness_target="-23"):
-    """WAV -> AAC mit Loudness-Normalisierung."""
+    """Convert WAV to AAC with loudness normalization."""
     loudness_filter = get_loudness_filter(loudness_target)
     cmd = [
         "ffmpeg",
@@ -72,7 +72,7 @@ def convert_wav_to_aac(wav_path, output_path, loudness_target="-23"):
 
 
 def convert_wav_to_mp3(wav_path, output_path, loudness_target="-23"):
-    """WAV -> MP3 mit Loudness-Normalisierung."""
+    """Convert WAV to MP3 with loudness normalization."""
     loudness_filter = get_loudness_filter(loudness_target)
     cmd = [
         "ffmpeg",

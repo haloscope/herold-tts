@@ -26,11 +26,11 @@ docker run --gpus all -p 8000:8000 \
 
 ### Docker (CPU-only)
 
-The CPU variant is wired up as a compose profile (not started by default):
+The CPU variant is wired up as a Compose profile (not started by default). On a CPU-only host, **name the CPU service explicitly**; otherwise Compose also starts the default GPU service:
 
 ```bash
-docker compose --profile cpu build
-docker compose --profile cpu up -d
+docker compose --profile cpu build herold-tts-cpu
+docker compose --profile cpu up -d herold-tts-cpu
 # API + demo web frontend on http://localhost:8001/
 ```
 

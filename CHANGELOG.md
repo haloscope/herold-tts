@@ -1,30 +1,41 @@
 # Changelog
 
+## v0.4.4 — English Documentation & Localization
+
+**Release Date:** 2026-11-12
+
+### 🌍 Localization and documentation
+
+- Standardized the project's documentation, comments, runtime diagnostics, CI messages, and demo interface in **English**. Existing German announcement data (`text_de`), voice-reference audio, API field names, and stable file paths are intentionally unchanged.
+- Updated the README for the current application, correcting the version summary and published-release history, documenting the supported GPU and CPU commands, asynchronous REST jobs, audio retrieval, and security limitations.
+- Translated the historical changelog, ADRs, AARs, acceptance checklist, backlog, and deployment documentation without changing the recorded outcomes or uncompleted test items.
+- Updated the software bill of materials against the declared dependencies and documented its scope: it is a source/manifest inventory, not a generated SPDX or CycloneDX dependency lockfile.
+
+### 🧪 Validation
+
+- The source-tree audit returned **zero German prose findings** after excluding the intentionally German speech fields. The existing **41 unit/API tests passed** in the preparation environment. The same checks should be rerun after applying the patch in the target checkout.
+- No GPU synthesis, CPU model inference, or complete audio end-to-end validation is claimed for this documentation/localization release.
+
+### ⚠️ Compatibility
+
+- No intended changes to REST routes, request/response field names, audio codecs, file naming, or speech content.
+- The browser demo's interface language changes from German to English; intentionally German sample announcement content stays German.
+
+---
+
 ## v0.4.3
 
 **Release Date:** 2026-08-07
 
 ### 🔒 Security
 
-- **SAST + Secret Detection reaktiviert:** Die GitLab-Security-Templates
-  (`Security/SAST.gitlab-ci.yml`, `Security/Secret-Detection.gitlab-ci.yml`) laufen wieder
-  in der test-Stage jeder Pipeline. Sie waren Teil der ursprünglichen CI (2026-06-25),
-  wurden aber beim Restrukturierungs-Commit am 2026-07-06 mitsamt der alten
-  `.gitlab-ci.yml` entfernt und fehlten seither. Die automatische Changelog-Generierung
-  der alten CI wird bewusst **nicht** reaktiviert — das CHANGELOG wird seit v0.3.x manuell
-  und kuratiert gepflegt (ADR/AAR-Prozess)
-- **Container-CVE-Scan (Trivy):** neuer `container-scan`-Job (Stage `scan`, nur auf `main`)
-  prüft die frisch gebauten gpu/cpu-Images auf HIGH/CRITICAL-CVEs — report-only
-  (`allow_failure`), JSON-Reports als Artefakte. GitLabs offizielles
-  Container-Scanning-Template ist Ultimate-only und daher ungeeignet
-- **JUnit-Testreport:** `test`-Job lädt `pytest-report.xml` als JUnit-Report hoch —
-  Testergebnisse erscheinen direkt in der GitLab-Pipeline-Ansicht
+- **SAST and secret detection restored:** GitLab security templates (`Security/SAST.gitlab-ci.yml` and `Security/Secret-Detection.gitlab-ci.yml`) run again in the `test` stage of each pipeline. They were part of the original pipeline on 2026-06-25 but had been removed with the old `.gitlab-ci.yml` during restructuring on 2026-07-06. Automated changelog generation from the old CI was deliberately *not* restored: since v0.3.x, changelog entries have been maintained manually with the ADR/AAR process.
+- **Container vulnerability scanning with Trivy:** a new `container-scan` job runs in the `scan` stage on `main`, inspecting newly built GPU and CPU images for HIGH and CRITICAL CVEs. It is initially report-only (`allow_failure`), with JSON artifacts. GitLab's official container-scanning template requires an Ultimate subscription and therefore was not used.
+- **JUnit test reports:** the `test` job uploads `pytest-report.xml` as a JUnit report, making test outcomes visible in the GitLab pipeline interface.
 
 ### 🔧 Maintenance
 
-- Commit-Konventionen eingeführt und Historie entsprechend umgeschrieben (ADR 0004):
-  Messages einheitlich englisch-sachlich, Zeitstempel aller Commits auf 12:00 UTC
-  anonymisiert
+- Introduced factual English Conventional Commit messages and rewrote history accordingly (ADR 0004). Author and committer timestamps were normalized to a clearly synthetic 12:00 UTC to reduce the disclosure of personal working patterns.
 
 ---
 
@@ -34,19 +45,13 @@
 
 ### ✨ Features
 
-- **CI-Pipeline (`.gitlab-ci.yml`, ADR 0003):** pytest bei jedem Push (CPU-torch, Modell
-  gemockt); auf `main` zusätzlich Build + Registry-Push beider Images
-  (`…/gpu:<version|latest>`, `…/cpu:<version|latest>`, Version aus `herold/__init__.py`);
-  Cleanup-Job hält pro Image nur aktuelle + Vorgänger-Version in der Registry (`keep_n=2`,
-  `latest` bleibt)
-- Zielmaschinen können damit fertige Images pullen statt selbst zu bauen; lokales Bauen
-  bleibt als Fallback dokumentiert (docs/DEPLOYMENT.md)
+- **CI pipeline (`.gitlab-ci.yml`, ADR 0003):** runs pytest on every push using CPU PyTorch wheels with a mocked model. On `main`, it also builds and pushes GPU and CPU Docker images to the GitLab registry under both versioned and `latest` tags (`…/gpu:<version|latest>` and `…/cpu:<version|latest>`). The version is read from `herold/__init__.py`. The cleanup job retains only the current and preceding version tag per image (`keep_n=2`) while preserving `latest`.
+- Target machines can pull ready-made images instead of building locally. Local builds remain documented as a fallback in `docs/DEPLOYMENT.md`.
 
-### ⚙️ Setup-Hinweise (einmalig)
+### ⚙️ One-time setup
 
-- Container Registry im Projekt aktivieren
-- CI/CD-Variable `REGISTRY_CLEANUP_TOKEN` anlegen (Project Access Token, Rolle Maintainer,
-  Scope `api`, masked) — ohne sie schlägt nur der Cleanup-Job fehl (`allow_failure`)
+- Enable the project container registry.
+- Configure `REGISTRY_CLEANUP_TOKEN` as a masked CI/CD variable backed by a Maintainer-role Project Access Token with the `api` scope. Without it, only the cleanup job fails; that job intentionally has `allow_failure`.
 
 ---
 
@@ -54,28 +59,15 @@
 
 **Release Date:** 2026-08-03
 
-### 🐛 Bug Fixes
+### 🐛 Bug fixes
 
-- **CPU-Image um ~4 GB CUDA-Ballast erleichtert:** `docker/Dockerfile.cpu` installiert
-  torch/torchaudio jetzt explizit aus dem CPU-Wheel-Index (`download.pytorch.org/whl/cpu`),
-  bevor `requirements.txt` aufgelöst wird. Die Standard-PyPI-Wheels bündeln die komplette
-  CUDA-Runtime (gemessen beim arm64-Testbuild: 9,8 GB Image, ~70 min Build) — im CPU-Image
-  totes Gewicht
-- **Healthcheck beider Images repariert:** statt alle 30 s den kompletten torch/qwen-tts-Stack
-  zu importieren (CPU-intensiv, riss auf langsameren Hosts das 10-s-Timeout → Container
-  dauerhaft fälschlich `unhealthy`, beobachtet beim Mac-Smoke-Test) jetzt eine leichte
-  HTTP-Probe gegen `/api/status`; `start-period=180s` deckt den langsamen Erstimport der API.
-  Hinweis: Container, die ohne API laufen (z. B. `docker run … bash`), melden nun `unhealthy` —
-  kosmetisch
+- **Reduced unnecessary CUDA dependencies in the CPU image:** `docker/Dockerfile.cpu` installs torch and torchaudio explicitly from the PyTorch CPU-wheel index (`download.pytorch.org/whl/cpu`) before resolving `requirements.txt`. Default PyPI wheels had bundled a full CUDA runtime (measured in the earlier arm64 build: 9.8 GB image and approximately 70-minute build time), which was unnecessary for CPU-only use.
+- **Repaired health checks for both images:** previously, checking health every 30 seconds imported the entire torch/qwen-tts stack. This was CPU-intensive and could exceed the 10-second timeout on slower hosts, incorrectly marking healthy containers `unhealthy`, as observed in the Mac smoke test. The check now uses a lightweight HTTP request to `/api/status`, and `start-period=180s` allows for slow initial API imports. Containers started without the API (for example `docker run … bash`) will report `unhealthy`; this is an expected cosmetic side effect.
 
-### ✅ Verified (Teiltest, Apple-Silicon-Mac)
+### ✅ Verification (partial Apple Silicon Mac test)
 
-- CPU-Image (noch vor dem CUDA-Fix) baute nativ für linux/arm64 — alle Abhängigkeiten haben
-  aarch64-Wheels; Smoke-Check gegen den laufenden Container grün: `/api/status`
-  (`device=cpu`, v0.4.0), `/` → `/demo/`, Demo-Seite, `/api/files`, 404-/400-Absicherung
-- Voller End-to-End-Lauf (Render + Konvertierung + HF-Cache-Persistenz) sowie Build der
-  gefixten Images stehen weiter für die Testmaschine aus; der Mac-Test wurde wegen
-  Systemlast abgebrochen und vollständig zurückgebaut
+- The CPU image **before** the CUDA fix built natively for `linux/arm64`; dependencies provided aarch64 wheels. The container passed smoke checks for `/api/status` (`device=cpu`, v0.4.0), `/` → `/demo/`, the demo page, `/api/files`, and 404/400 error handling.
+- A complete end-to-end run (render, conversion, Hugging Face cache persistence) and a build of the corrected images were **not yet verified** on the test machine. The Mac test was stopped because of heavy system load, and the test resources were removed.
 
 ---
 
@@ -85,33 +77,20 @@
 
 ### ✨ Features
 
-- **Job-Status-API:** `POST /api/render` und `POST /api/convert` geben jetzt eine `job_id`
-  zurück; `GET /api/jobs/{job_id}` liefert `queued | running | done | failed` inkl. Fehlertext.
-  In-Memory-Registry, Single-Instance by design (siehe `docs/adr/0002`)
-- **Datei-Endpoints:** `GET /api/files` (Listing von `data/renders/` und `data/final/`) und
-  `GET /api/files/{dir}/{name}` (Download/Streaming, Path-Traversal-sicher über das vorhandene
-  `validate_filename_stem` plus Verzeichnis-/Extension-Whitelist)
-- **Exemplarischer Demo-Webservice:** selbst-enthaltene HTML/JS-Seite unter `/demo`
-  (Root `/` leitet dorthin um): Ansage eingeben → rendern → Job-Polling → Audio-Player →
-  AAC/MP3-Konvertierung → Downloads. Nutzt ausschließlich die öffentliche REST-API
-  (Integrations-Blaupause)
-- **CPU-Variante als Compose-Profil:** `docker compose --profile cpu up -d` startet
-  `herold-tts-cpu` (Port 8001) mit denselben Mounts wie der GPU-Service; Standardverhalten
-  unverändert
+- **Job status API:** `POST /api/render` and `POST /api/convert` now return a `job_id`; `GET /api/jobs/{job_id}` reports `queued`, `running`, `done`, or `failed`, including failure details. Jobs are stored in memory by design, for a single instance (see ADR 0002).
+- **File endpoints:** `GET /api/files` lists files from `data/renders/` and `data/final/`; `GET /api/files/{dir}/{name}` streams or downloads results, with path traversal protection through the existing `validate_filename_stem` and directory/extension allowlists.
+- **Example demo web service:** a self-contained HTML/JS page at `/demo` (with `/` redirecting there) provides text entry → rendering → job polling → audio playback → AAC/MP3 conversion → downloads. It uses only the public REST API and illustrates integration patterns.
+- **CPU variant as a Compose profile:** the CPU container `herold-tts-cpu` is available under profile `cpu` on port 8001, with the same mounts as the GPU container. The default GPU service remains enabled; on CPU-only hosts explicitly start `herold-tts-cpu` to avoid also starting the GPU service.
 
-### ✅ Verified
+### ✅ Verification
 
-- 41 Tests grün (28 bestehende + 13 neue API-Tests: Path-Traversal, Job-Lebenszyklus mit
-  gemocktem Modell, Datei-Listing/-Download, Demo-Auslieferung); `httpx` für den FastAPI
-  `TestClient` zu `requirements.txt` hinzugefügt
-- `docker compose config` für beide Profile validiert; End-to-End-Lauf (GPU + CPU) auf der
-  Testmaschine steht aus
+- **41 tests passed:** 28 previous tests plus 13 new API cases covering path traversal, job lifecycle with a mocked model, file listing/downloads, and demo serving. Added `httpx` to `requirements.txt` for FastAPI `TestClient`.
+- Both Docker Compose configurations were validated with `docker compose config`. A complete GPU/CPU hardware end-to-end test on the test machine was still pending.
 
-### 📝 Docs
+### 📝 Documentation
 
-- DEPLOYMENT.md: veraltete Build-/Startbeispiele korrigiert (`docker/Dockerfile`-Pfade,
-  `python -m herold.api` statt `cd work`), neue Endpoints und Demo dokumentiert
-- ADR 0002 (integrierte Demo + In-Memory-Jobs), README-Schnellstart, CLAUDE.md aktualisiert
+- Corrected obsolete Docker build/start commands in `DEPLOYMENT.md` (Dockerfile paths and `python -m herold.api` rather than `cd work`) and documented the new routes and demo.
+- Added ADR 0002 for the integrated demo and in-memory jobs; updated README quick start and CLAUDE.md.
 
 ---
 
@@ -194,7 +173,7 @@ time — no application logic changed, only the container build, Compose config,
 - **`qwen_tts` missing at runtime:** the package was never installed — added to the Docker build
   (via `--no-deps` plus its actual dependencies, installed separately to avoid a transitive
   `torchaudio` upgrade that would break the pinned cu128 torch/torchaudio pair; see the
-  "torch-Konflikt-Risiko" note in `README.md`)
+  "PyTorch dependency conflict" note in the v0.1 README)
 - **API startup crash:** `Path(config.renders_dir/final_dir).mkdir(exist_ok=True)` failed with
   `FileNotFoundError` on a fresh container because `/app/data` didn't exist yet — added
   `parents=True`

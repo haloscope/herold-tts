@@ -1,41 +1,23 @@
-# ADR 0003: Image-Builds auf eigenen GitLab-Runnern; Registry behält nur zwei Versionen
+# ADR 0003: Build images on self-hosted GitLab runners; retain only two versions
 
-**Status:** Akzeptiert (2026-08-03)
+**Status:** Accepted (2026-08-03)
 
-## Kontext
+## Context
 
-Die Docker-Images wurden bisher manuell auf der Zielmaschine gebaut. Zwei Erfahrungen vom
-2026-08-03 sprechen dagegen: Der Entwicklungs-Mac (8 GB RAM) ist für Builds ungeeignet
-(Swapping, System-Hänger, Abbrüche — siehe AAR v0.4.0-Nachtrag), und die Testmaschine soll
-testen, nicht bauen. Es existieren eigene GitLab-Runner (Docker-Executor mit durchgereichtem
-Docker-Socket, Internetzugang, keine Policy-Beschränkungen). Zu klären war außerdem die
-Registry-Aufbewahrung: GPU-Images sind ~15 GB (CUDA-Runtime-Base + torch-CUDA-Stack), sollen
-also nicht unbegrenzt akkumulieren; Vorgabe des Nutzers: nur aktuelle + Vorgänger-Version.
+Docker images had previously been built manually on the target machine. Two observations on 2026-08-03 argued against this approach: the development Mac (8 GB RAM) is not suitable for image builds (swapping, system hangs, interrupted builds; see the v0.4.0 AAR addendum), and the test machine should test rather than build. Self-hosted GitLab runners are available (Docker executor with access to the host Docker socket, Internet access, no restrictive runner policies). Container registry retention was also unresolved: the GPU images occupy about 15 GB (CUDA runtime base plus PyTorch CUDA stack). They should not accumulate indefinitely. The requirement is to retain only the current and preceding version.
 
-## Entscheidung
+## Decision
 
-1. **CI-Pipeline (`.gitlab-ci.yml`) auf den eigenen Runnern:**
-   - Stage `test`: pytest bei jedem Branch-Push (python:3.12-slim, torch aus dem CPU-Wheel-Index,
-     Modell gemockt — schnell und ohne GPU).
-   - Stage `build`: GPU- und CPU-Image nur auf `main`, getaggt als
-     `<registry>/herold-tts/{gpu,cpu}:<version>` (Version aus `herold/__init__.py`) plus `latest`,
-     Push in die GitLab Container Registry. Der Socket-Executor nutzt den Layer-Cache des
-     Runner-Hosts — Folgebuilds ohne Dependency-Änderung laufen in Minuten.
-   - Stage `cleanup`: Bulk-Delete-API mit `keep_n=2` löscht pro Image-Repository alle
-     Versions-Tags außer den zwei neuesten; `latest` bleibt.
-2. **Die Zielmaschinen pullen künftig** (`docker pull …:latest` bzw. Versions-Tag) statt lokal
-   zu bauen; lokales Bauen bleibt als Fallback dokumentiert.
+1. **Run `.gitlab-ci.yml` on self-hosted runners:**
+   - `test`: run pytest on every branch push (`python:3.12-slim`, CPU-only PyTorch wheels, mocked model; no GPU required).
+   - `build`: on `main`, build and push both GPU and CPU images to `<registry>/herold-tts/{gpu,cpu}:<version>` (version from `herold/__init__.py`) and `latest`. Using the host Docker socket provides a reusable image-layer cache, reducing subsequent build times when dependencies are unchanged.
+   - `cleanup`: use the bulk-delete API with `keep_n=2` to retain only the two newest version tags per image repository while keeping `latest`.
+2. **Target machines pull prebuilt images** (`docker pull …:latest` or a version tag) rather than building locally. Local builds remain documented as a fallback.
 
-## Konsequenzen
+## Consequences
 
-- Registry-Bedarf ist gedeckelt (~2×15 GB GPU + 2×3,5 GB CPU plus latest-Referenzen).
-- Der Cleanup-Job braucht ein Project Access Token (Scope `api`) als CI-Variable
-  `REGISTRY_CLEANUP_TOKEN` — Token-Ablauf ist ein Wartungspunkt. Die Bulk-Delete-API ist auf
-  1 Aufruf/Stunde/Repository gedrosselt; der Job ist deshalb `allow_failure`.
-- Der GPU-E2E-Test bleibt manuell auf der Testmaschine (kein Runner hat eine Blackwell-GPU) —
-  CI verifiziert Bauen + Unit-Tests, nicht Rendern.
-- Auf dem Runner-Host akkumulieren gebaute Images im lokalen Docker-Daemon; gelegentliches
-  `docker image prune` auf dem Host ist Betreiber-Aufgabe (bewusst nicht automatisiert, da der
-  Daemon geteilt ist).
-- Alte Versions-Images sind nach dem Cleanup unwiederbringlich — Reproduktion notfalls über
-  `git checkout <tag>` + Rebuild.
+- Registry usage is bounded (approximately 2 × 15 GB GPU plus 2 × 3.5 GB CPU, with `latest` references).
+- Cleanup needs a Project Access Token with `api` scope in `REGISTRY_CLEANUP_TOKEN`. Token expiration requires maintenance. The bulk-delete API is limited to one call per hour per repository, so the cleanup job uses `allow_failure`.
+- GPU end-to-end validation remains manual on the test machine because no runner has a Blackwell GPU. CI verifies unit tests and image builds, not real speech synthesis.
+- Image layers accumulate in the runner host's Docker daemon. Periodic `docker image prune` is an operator responsibility, intentionally not automated for a shared daemon.
+- Older image versions may be irretrievable after cleanup. Rebuild them from `git checkout <tag>` if necessary.
