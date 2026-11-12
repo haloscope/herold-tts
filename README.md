@@ -1,165 +1,299 @@
 # Herold-TTS
 
-Vorab gerenderte Telefon-/Voicemail-Ansagen in Deutsch und Englisch mit
-**einer** konsistenten Stimme. Selbst-gehostet, MIT, kommerziell nutzbar.
+**Self-hosted, bilingual text-to-speech for pre-rendered telephone and voicemail announcements.**
 
-Aktuell ist der Stack darauf ausgelegt eine NVIDIA Blackwell GPU für das Rendering der Audiofiles vorzusehen. Grundsätzlich sollte dies mit einer CPU oder anderen GPU gerendert werden können. Hierzu werden ggfs. Anpassungen erforderlich sein, wird sich aber in jedemfall auf die Renderzeit auswirken.
+[![MIT License](https://img.shields.io/github/license/haloscope/herold-tts)](LICENSE)
+[![Latest GitHub release](https://img.shields.io/github/v/release/haloscope/herold-tts?label=release)](https://github.com/haloscope/herold-tts/releases)
+[![Git tags](https://img.shields.io/github/v/tag/haloscope/herold-tts?label=latest%20tag)](https://github.com/haloscope/herold-tts/tags)
+[![Last commit](https://img.shields.io/github/last-commit/haloscope/herold-tts)](https://github.com/haloscope/herold-tts/commits/main)
+[![Application version](https://img.shields.io/badge/application%20version-0.4.3-blue)](CHANGELOG.md)
 
----
+Herold-TTS generates German and English announcements in a **consistent, custom-designed voice** using [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS). It combines a reproducible batch-rendering pipeline with a REST API and a small demo web interface. Audio is generated on your own infrastructure; after the models have been downloaded, synthesis does not require a hosted TTS API.
 
-## Schnellstart — REST API & Demo-Webservice
+The project is designed for **pre-rendering**, not real-time or streaming speech synthesis. The application code is licensed under MIT; third-party dependencies and models retain their own licenses.
 
-Starte den Service einfach mit Docker:
+## Versions, releases, and tags
 
-```bash
-docker compose up -d          # GPU-Variante, Port 8000
-# oder ohne GPU:
-docker compose --profile cpu up -d   # CPU-Variante, Port 8001
-```
+The application sources on `main` document version **0.4.3** in the [changelog](CHANGELOG.md). This is **not automatically the same as the latest published GitHub Release**: Git tags, GitHub Releases, and the application version are separate version indicators.
 
-Öffne **http://localhost:8000/** — die Startseite ist ein exemplarischer
-Demo-Webservice (Ansage eingeben → rendern → anhören → als AAC/MP3 laden), der
-ausschließlich die öffentliche REST-API nutzt und so als Integrations-Blaupause
-dient. Swagger UI: http://localhost:8000/docs
+GitHub Releases currently visible for this repository (checked November 12, 2026):
 
-**Beispiel: Ansagen rendern**
-```bash
-curl -X POST http://localhost:8000/api/render \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ansagen": [{
-      "id": "welcome",
-      "text_de": "Willkommen!",
-      "text_en": "Welcome!"
-    }]
-  }'
-```
+| Git tag | GitHub Release |
+| --- | --- |
+| `0.1.0` | [Initial release](https://github.com/haloscope/herold-tts/releases/tag/0.1.0) |
+| `v0.2.0` | [Bug fixes and pipeline improvements](https://github.com/haloscope/herold-tts/releases/tag/v0.2.0) |
+| `0.3.0` | [Production-ready improvements](https://github.com/haloscope/herold-tts/releases/tag/0.3.0) |
 
-Mehr: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+See **[all repository tags](https://github.com/haloscope/herold-tts/tags)**, **[GitHub Releases](https://github.com/haloscope/herold-tts/releases)**, and the **[full changelog](CHANGELOG.md)** for version history. The table above lists releases confirmed on GitHub, **not necessarily every Git tag**. A Git tag exists independently of whether a GitHub Release has been published for it.
 
----
+## Features
 
-## Warum dieser Stack? (Entscheidungslog)
+- **One voice across two languages:** German and English announcements use the same voice reference.
+- **Voice exploration and reuse:** audition `CustomVoice` presets and `VoiceDesign` candidates, then reuse a selected reference with `VoiceClone`.
+- **Three audio variants per announcement:** English, German, and a combined English → 2-second pause → German version.
+- **Efficient batch rendering:** only the English and German clips are synthesized; the combined version is assembled from those recordings.
+- **Ready-to-use formats:** 24 kHz WAV masters, AAC (`.m4a`) and MP3, with EBU R128 loudness normalization to **−23 LUFS**.
+- **REST API:** asynchronous render and conversion jobs, status polling, file listing, and downloads.
+- **Integration example:** a browser-based demo that communicates through the public REST API.
+- **Docker deployment:** NVIDIA GPU image and a separate CPU-only image, with persistent output and Hugging Face model-cache mounts.
+- **Automated tests:** pytest-based tests for the application logic.
 
-| Frage | Optionen | Wahl + Begründung |
-|---|---|---|
-| Engine? | Kokoro / Piper / Chatterbox / **Qwen3-TTS** | Qwen3-TTS — einziges Modell, das *fertige Stimmen* **und** dieselbe Stimme über DE+EN **und** MIT (kommerziell) vereint. Kokoro: kein Deutsch. Piper: pro Sprache getrennte Stimmen. Chatterbox: braucht Referenzclip (war nicht vorhanden). |
-| Modus? | CustomVoice / VoiceDesign / VoiceClone | Clone fällt raus (kein Sample). Audition testet **CustomVoice** (9 Presets) **und** **VoiceDesign** (Stimme per Text) gegeneinander. |
-| Modellgröße? | 0.6B / **1.7B** | 1.7B — beste DE-Qualität; bei <10 Ansagen ist Renderzeit irrelevant. |
-| Lizenz? | — | MIT → unbegrenzte kommerzielle Nutzung, keine Gebühren/Attribution. |
-| Zielformat? | — | `.m4a` (AAC) + `.mp3` parallel, aus einem verlustfreien WAV-Master. |
-| Multiversion? | Drei separate Renderings (EN, DE, EN+DE) / **Zwei Renderings + Kombination** | Zwei Synthesen pro Ansage (EN + DE), Multiversion (EN + 2s Pause + DE) wird kombiniert → **50% Render-Zeit-Ersparnis**. |
+## Requirements
 
-### Aufgefallen / Fallstricke
-- **Blackwell (sm_120):** Benötigt CUDA **12.8+** und Blackwell-fähiges
-  PyTorch (cu128). Ältere Images scheitern mit „no kernel image available".
-- **Kein deutscher Native unter den 9 Presets:** Deutsch geht trotzdem; für deutschen Native-Klang nutzen wir **VoiceDesign**.
-- **torch-Konflikt-Risiko (GELÖST):** `pip install qwen-tts` zieht inkompatible torchaudio nach. Lösung: torch + torchaudio als Paar aus cu128 instalieren.
+| Mode | Requirements | Web interface / API |
+| --- | --- | --- |
+| NVIDIA GPU | Docker and NVIDIA Container Toolkit; a compatible CUDA GPU (12 GB VRAM is a practical starting point, with more headroom for voice audition) | `http://localhost:8000/` |
+| CPU-only | Docker; **32 GB RAM recommended** and a capable multicore CPU | `http://localhost:8001/` |
 
----
+The GPU image uses the CUDA 12.8 stack and is intended for compatible NVIDIA hardware, including Blackwell. CPU rendering is available but considerably slower. Model weights are fetched on first use, so allow several gigabytes of free disk space. See [Hardware Requirements & Performance](docs/HARDWARE.md) for measured results and disk usage.
 
-## Setup (Schritt 1) - Docker Image erstellen und starten
+> **Note:** The provided Compose services are intended as separate deployment options. When running on a CPU-only machine, explicitly select `herold-tts-cpu` as shown below; simply enabling the `cpu` profile without selecting a service also selects the default GPU service.
+
+## Quick start
+
+### 1. Clone and prepare the data directories
 
 ```bash
-# im Projektordner
-docker compose build          # einmalig (zieht CUDA-Image + Torch + qwen-tts)
-docker compose up -d
+git clone https://github.com/haloscope/herold-tts.git
+cd herold-tts
+mkdir -p data/audition data/renders data/final data/hf-cache
 ```
 
-**Blackwell-Check direkt nach dem Build** (Pflicht):
+The containers run with UID `999`. On Linux hosts, ensure the directories mounted from `./data/` are writable by that UID; the [deployment guide](docs/DEPLOYMENT.md#volume-permissions-required-before-first-run) explains the permissions and recovery commands.
+
+### 2A. Start with an NVIDIA GPU
+
+```bash
+docker compose build herold-tts-gpu
+docker compose up -d herold-tts-gpu
+```
+
+- Demo: <http://localhost:8000/>
+- API documentation (Swagger): <http://localhost:8000/docs>
+- Health check: <http://localhost:8000/api/status>
+
+Verify GPU visibility from inside the container:
+
 ```bash
 docker compose exec herold-tts-gpu python -c \
   "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))"
-# erwartet z.B.: 2.x.x+cu128 ... 12.8 ... NVIDIA GeForce XYZ
 ```
 
----
+### 2B. Start without an NVIDIA GPU (CPU-only)
 
-## Audition (Schritt 2) — Stimme auditieren
+Run **instead of** the GPU commands:
 
-**Batch-Skript** (reproduzierbar, empfohlen)
+```bash
+docker compose --profile cpu build herold-tts-cpu
+docker compose --profile cpu up -d herold-tts-cpu
+```
+
+- Demo: <http://localhost:8001/>
+- API documentation: <http://localhost:8001/docs>
+- Health check: <http://localhost:8001/api/status>
+
+The following API examples use port `8000`; substitute `8001` for CPU-only deployments.
+
+## REST API
+
+The API accepts requests asynchronously. Rendering or converting audio returns **HTTP 202 Accepted** with a `job_id`; poll the job-status endpoint to determine whether processing has finished.
+
+### Check service health
+
+```bash
+curl http://localhost:8000/api/status
+```
+
+### Render an announcement
+
+```bash
+curl -X POST http://localhost:8000/api/render \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "ansagen": [
+      {
+        "id": "welcome",
+        "text_de": "Willkommen!",
+        "text_en": "Welcome!"
+      }
+    ]
+  }'
+```
+
+Example accepted response (the job ID will be different):
+
+```json
+{
+  "status": "accepted",
+  "message": "Rendering started",
+  "job_id": "3f2a9c1d40be",
+  "count": 1,
+  "output_dir": "/app/data/renders"
+}
+```
+
+### Poll job status
+
+```bash
+curl http://localhost:8000/api/jobs/3f2a9c1d40be
+```
+
+Possible job states: `queued`, `running`, `done`, and `failed`. Job state is held **in memory**, so it is lost when the API process restarts and is not shared across instances.
+
+### Convert WAV files to AAC and MP3
+
+Once rendering has completed:
+
+```bash
+curl -X POST http://localhost:8000/api/convert \
+  -H 'Content-Type: application/json' \
+  -d '{"filter_pattern": "*.wav"}'
+```
+
+Conversion also returns a `job_id`, which can be checked using the same job-status endpoint.
+
+### List and download audio files
+
+```bash
+curl http://localhost:8000/api/files
+curl -O http://localhost:8000/api/files/renders/welcome_en.wav
+curl -O http://localhost:8000/api/files/final/welcome_en.mp3
+```
+
+The demo page at <http://localhost:8000/> provides a render form, job polling, audio playback, conversion and downloads. It is intended as an **integration blueprint**, not as a substitute for securing the API before exposing it to untrusted networks.
+
+For full endpoint documentation and examples, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Batch rendering workflow
+
+The original command-line workflow is available alongside the REST API. The examples below use the GPU container; replace `herold-tts-gpu` with `herold-tts-cpu` for CPU-only deployment.
+
+### 1. Audition voices (optional)
+
 ```bash
 docker compose exec herold-tts-gpu python -m herold.audition
-# Ergebnis: ./audition/*.wav  (auf dem Host)
 ```
 
-Erzeugt Samples für mehrere Preset-Stimmen und VoiceDesign-Beschreibungen in `data/audition/*.wav`.
-→ Alle anhören, Favorit notieren.
+This creates candidate WAV recordings under `data/audition/` for voice comparison. The production configuration uses a selected German reference recording, `data/audition/reference_design_de.wav`, as the voice-cloning reference. Voice audition is optional if the required reference file is already available.
 
----
+### 2. Edit the announcements
 
-## Sprachsynthese
+Edit [`resources/ansagen.yaml`](resources/ansagen.yaml). Each entry supplies a stable ID and separate German and English texts:
 
-Die Stimme wurde gewählt: **design_female_neutral via VoiceClone** (reference_design_de.wav).
-
-### Schritt 3: ansagen.yaml editieren
-Öffne `ansagen.yaml` und definiere deine Ansagen mit **separaten EN + DE Texten**:
 ```yaml
 ansagen:
   - id: welcome
-    text_en: "Hello, I'm delighted to welcome you to Oscar!..."
-    text_de: "Hallo, ich freue mich Sie auf Oskar begrüßen zu dürfen!..."
-  # Weitere Ansagen hier hinzufügen
+    text_en: "Welcome to our service."
+    text_de: "Willkommen bei unserem Dienst."
 ```
 
-### Schritt 4: Batch-Render (3 Versionen pro Ansage, aber nur 2 Synthesen!)
+### 3. Render WAV masters
+
 ```bash
 docker compose exec herold-tts-gpu python -m herold.render
 ```
 
-Rendert für **jede Ansage automatisch 3 Versionen**:
-- `<id>_en.wav` (nur Englisch)
-- `<id>_de.wav` (nur Deutsch)  
-- `<id>_multiversion.wav` (Englisch + 2s Pause + Deutsch)
+Each entry generates:
 
-**Render-Zeit-Ersparnis:** Die Multiversion wird aus EN+DE kombiniert (kein extra TTS-Rendering).
+```text
+data/renders/
+├── welcome_en.wav            # English only
+├── welcome_de.wav            # German only
+└── welcome_multiversion.wav  # English + 2 s silence + German
+```
 
-**Output:** `./data/renders/<id>_{en,de,multiversion}.wav` (24 kHz WAV-Master)
+The pipeline synthesizes two clips per announcement and assembles the third, combined variant without a third model invocation. WAV masters are produced at **24 kHz**.
 
-### Schritt 5: Konvertierung zu AAC + MP3
+### 4. Convert and normalize
+
 ```bash
 docker compose exec herold-tts-gpu python -m herold.convert
 ```
 
-- Konvertiert **alle** WAV-Dateien (EN, DE, Multiversion)
-- Loudness-Normalisierung (EBU R128: -23 LUFS)
-- Beide Formate: `.m4a` (AAC) + `.mp3` (VBR ~192 kbps)
+Converted files are placed in `data/final/`:
 
-**Output:** `./data/final/<id>_{en,de,multiversion}.{m4a,mp3}`
-
-Zugriff: auf dem Host unter `./data/final/`, oder bequem über die Demo-Seite
-(`http://<host>:8000/` → Abschnitt „Dateien" mit Playern und Download-Links):
-```
+```text
 data/final/
-  ├── welcome_en.m4a / .mp3
-  ├── welcome_de.m4a / .mp3
-  ├── welcome_multiversion.m4a / .mp3
-  └── ...
+├── welcome_en.m4a
+├── welcome_en.mp3
+├── welcome_de.m4a
+├── welcome_de.mp3
+├── welcome_multiversion.m4a
+└── welcome_multiversion.mp3
 ```
 
----
+Audio conversion uses FFmpeg, with EBU R128 loudness normalization targeting **−23 LUFS**; output formats are AAC and variable-bitrate MP3.
 
-## Reproduzierbar von 0
+## Architecture and design decisions
 
-1. Repository klonen:
-   ```bash
-   git clone <repo> herold-tts && cd herold-tts
-   ```
+Herold-TTS separates voice exploration, synthesis and conversion into independent file-based stages, with FastAPI as a lightweight API layer:
 
-2. `docker compose build && docker compose up -d`
+```text
+Voice exploration (optional)
+  CustomVoice / VoiceDesign → selected reference audio
+                                  ↓
+Announcement texts (EN + DE) → Qwen3-TTS VoiceClone
+                                  ↓
+                 EN WAV + DE WAV (24 kHz)
+                                  ↓
+        Combined EN + pause + DE WAV
+                                  ↓
+                  FFmpeg conversion
+                                  ↓
+                 AAC (.m4a) + MP3
+```
 
-3. Blackwell-Check (oben)
+**Why this design?**
 
-4. **Audition** (optional): `docker compose exec herold-tts-gpu python -m herold.audition`
+- **Qwen3-TTS 1.7B:** chosen to provide bilingual voice consistency and a reusable voice reference.
+- **Design-then-clone:** `VoiceDesign` is used to develop the desired voice, while `VoiceClone` keeps the chosen voice consistent across announcements.
+- **WAV masters:** conversion can be repeated without resynthesizing the announcement.
+- **Combined bilingual version:** assembled from the language-specific clips instead of synthesizing it separately.
+- **Self-hosted processing:** model inference takes place locally after the required models have been downloaded.
 
-5. **Render**: `docker compose exec herold-tts-gpu python -m herold.render` → `data/renders/*.wav`
+The main modules are `herold/audition.py`, `herold/render.py`, `herold/convert.py`, `herold/api.py`, and `herold/config.py`.
 
-6. **Convert**: `docker compose exec herold-tts-gpu python -m herold.convert` → `data/final/*.m4a` + `data/final/*.mp3`
+## Configuration and data
 
----
+| Path / variable | Purpose |
+| --- | --- |
+| `resources/ansagen.yaml` | Batch announcement IDs and bilingual text |
+| `data/audition/` | Voice comparison samples and reference audio |
+| `data/renders/` | Generated WAV masters |
+| `data/final/` | Converted AAC and MP3 files |
+| `data/hf-cache/` | Persistent Hugging Face model cache |
+| `TTS_DEVICE` | Execution device, such as `cuda:0` or `cpu` |
+| `herold/config.py` | Central configuration for paths, codecs, audio and rendering settings |
 
-## Lizenzen & Compliance
+The Docker Compose file mounts the data directories and model cache so output and downloaded model files can survive container recreation. The reference announcement file is mounted read-only.
 
-Alle Komponenten unter permissiven Open-Source-Lizenzen. Siehe [SBOM.md](SBOM.md) für Details.
+## Testing and CI
 
-**Status:** ✅ Kommerziell nutzbar, keine Lizenzgebühren, keine Copyleft-Anforderungen (Projekt unter MIT).
+Run the unit tests in an environment with the required Python dependencies installed:
+
+```bash
+python -m pip install -r requirements.txt
+pytest
+# Optional coverage report:
+pytest --cov=herold
+```
+
+The tests mock Qwen-TTS where applicable; passing them does **not** constitute a complete GPU inference or end-to-end audio-quality test.
+
+The repository currently includes a **GitLab CI** configuration (`.gitlab-ci.yml`) for testing, image builds and security checks. Migrating the Git repository to GitHub does not automatically convert that pipeline into GitHub Actions. GitHub-hosted CI/CD must be configured separately if needed.
+
+## Documentation
+
+- [Deployment guide and REST API](docs/DEPLOYMENT.md)
+- [Hardware requirements and measured performance](docs/HARDWARE.md)
+- [Changelog](CHANGELOG.md)
+- [Software Bill of Materials](SBOM.md)
+- [License](LICENSE)
+
+## License and third-party components
+
+**Herold-TTS application code is distributed under the [MIT License](LICENSE).**
+
+The Qwen3-TTS models and related upstream software have their **own licenses** (including Apache-2.0 for Qwen3-TTS models). NVIDIA CUDA/cuDNN are proprietary components, while system utilities such as FFmpeg and SoX have their respective open-source license obligations. See [SBOM.md](SBOM.md) for the dependency inventory and verify the applicable license terms before redistributing bundled binaries or container images.
+
+*Documentation reviewed against the public `main` branch on November 12, 2026. The published-release list and the application version are intentionally shown separately.*
